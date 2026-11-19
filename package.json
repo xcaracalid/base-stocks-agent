@@ -14,7 +14,8 @@
     "signals": "node --no-warnings packages/signals/src/report.ts",
     "snapshot": "node --no-warnings packages/data/src/snapshot.ts",
     "snapshot:cycle": "node --no-warnings apps/agent/src/snapshot-cycle.ts",
-    "test": "node --no-warnings --test packages/portfolio/test/*.test.ts",
+    "test": "node --no-warnings --test packages/portfolio/test/*.test.ts packages/attestation/test/*.test.ts",
+    "test:contracts": "forge test --root contracts",
     "web": "node --no-warnings apps/web/src/server.ts"
   },
   "type": "module",

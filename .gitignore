@@ -14,3 +14,11 @@ data/snapshots/*.json
 .DS_Store
 .idea/
 .vscode/
+
+# Demo video renders (large binaries stay local; script + notes are tracked)
+video/*.mp4
+video/work/
+
+# Foundry build artifacts (forge-std is a pinned submodule, see .gitmodules)
+contracts/out/
+contracts/cache/

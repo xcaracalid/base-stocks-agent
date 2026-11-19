@@ -406,3 +406,86 @@ captures show (store state at capture: snapshot #8, 2026-11-19 14:07 UTC):
   decision log gains real transaction links then.
 - **Nov 25** — public launch + build-in-public post #1 (user posts).
 - **Nov 26** — LLM research-note layer over the decision records.
+
+---
+
+## Session 6 — Fri 2026-11-20 (early morning): attestation layer — contract + agent module, built NOT deployed
+
+This session covers the Nov 23 plan slot (attestation contract), pulled
+forward. **Nothing was deployed and no on-chain transaction was sent.**
+Deployment waits for the user's explicit approval; funding is already done.
+
+### What was built
+
+- `contracts/src/DecisionAttestor.sol` — minimal, dependency-light
+  (Solidity 0.8.24, zero imports). `recordDecision(bytes32 decisionHash,
+  uint64 snapshotRunId, string uri)` appends one attestation and emits
+  `Attested(index, attester, decisionHash, snapshotRunId, uri)`; read API
+  is `attestationCount()` + `getAttestation(uint256 index)` (hash, run id,
+  uri, attester, attestedAt). No access control by design — a public
+  append-only log; attribution comes from the `attester` field and from the
+  Builder Code (ERC-8021) the agent appends to calldata. Duplicate hashes
+  allowed as separate entries (a re-attestation is its own log entry).
+- `contracts/test/DecisionAttestor.t.sol` — 7 Foundry tests (store + emit,
+  index sequencing, caller-as-attester via prank, duplicate hash, empty
+  uri, out-of-bounds revert). **7/7 passing.**
+- `contracts/script/Deploy.s.sol` — deploy script that reads the deployer
+  key ONLY from the `DEPLOYER_PRIVATE_KEY` env var and reverts when unset.
+  Verified: running it without the var fails with `vm.envUint:
+  environment variable "DEPLOYER_PRIVATE_KEY" not found` — no broadcast
+  attempted. **It was NOT run with a key and will not be until the user
+  approves.**
+- `packages/attestation/src/canonical.ts` — canonical hashing of a stored
+  decision record. Rules (v1, documented in the file): parse the record
+  JSON, recursively sort keys, no whitespace, keccak256 → `0x` bytes32.
+  Anyone can recompute the onchain hash from the published record.
+- `packages/attestation/src/submit.ts` — hand-rolled ABI encoding of
+  `recordDecision` (selector `0xb157b643`, cross-checked with `cast sig`)
+  plus `submitAttestation()`, which REFUSES unless a deployed attestor
+  address AND a signer/transport are explicitly configured. It is never
+  invoked by the agent loop; there is no default address, RPC, or key.
+- `packages/attestation/test/attestation.test.ts` — 11 tests: canonical
+  determinism (key-order/whitespace independence, golden hash
+  `0x2c06…251c`), hash sensitivity to any field change, golden calldata
+  (cross-checked with `cast calldata-decode`), Builder Code appending,
+  malformed-input rejection, and submit refusal without address or
+  without signer. **11/11 passing; `npm test` now 23/23 total.**
+- Toolchain: Foundry 1.10.0 installed via foundryup (forge/cast/anvil);
+  `forge-std` v1.17.0 vendored under `contracts/lib/` (gitignored, reinstall
+  via `forge install`). `npm run test:contracts` added.
+- `contracts/README.md` rewritten from plan to real status + exact deploy
+  command for the approval step.
+
+### Verified live (read-only)
+
+- **Deployer EOA `0x483C4569a73a886048cc03Ec09Fd30C8d91358Ec` on Base
+  Sepolia (chain 84532): 0.04999999987532768 ETH** — exactly the funded
+  amount recorded earlier; still there. Balance read only; the key file
+  was never opened, read, or used in this run.
+
+### Honest gaps / pending
+
+- **Not deployed.** The single remaining step is the user's approval to
+  deploy to Base Sepolia (funding already done, ~0.05 ETH covers many
+  attestations at Sepolia gas). After deploy: record the contract address
+  as `ATTESTOR_ADDRESS`, verify attribution on Sepolia, then the decision
+  log gains real transaction links.
+- Builder Code value itself is not yet registered/chosen — the submit path
+  accepts it as an optional append, but no code value exists yet (Nov 23
+  item, with the deploy).
+- The agent loop does not call `submitAttestation()` yet — wiring it in
+  (attest each decision after it is recorded) is a post-deploy step, and
+  only with an explicitly configured signer.
+- Note: BUILD-LOG has no session 5 entry (the demo-video commit
+  `603137c` exists in git, but its log section was never written here).
+  This session does not backfill it.
+
+### Next steps
+
+- **User: approve the deploy** (one word) → run the Deploy script on Base
+  Sepolia → verify on Basescan → wire attest-after-decision into the agent
+  loop with the deployed address.
+- **Nov 24–25** — dashboard decision log shows attestation tx links;
+  public launch + build-in-public post #1 (user posts).
+- **Nov 26** — LLM research-note layer over the decision records.
+- **Nov 29** — mainnet attestation contract (separate approval).
