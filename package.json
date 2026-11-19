@@ -1,1 +1,22 @@
-{"description":"Stock Agent on Base — an autonomous research-to-portfolio agent for Coinbase tokenized stocks on Base (Base Stocks Maxxing Builder Quest 2026, Agentic Stock Finance track).","engines":{"node":">=22"},"name":"base-stocks-agent","private":true,"scripts":{"agent":"node --no-warnings apps/agent/src/main.ts","decisions":"node --no-warnings packages/portfolio/src/decisions-report.ts","dex":"node --no-warnings packages/data/src/dex-report.ts","feeds":"node --no-warnings packages/data/src/feeds-report.ts","portfolio:demo":"node --no-warnings packages/portfolio/src/demo.ts","signals":"node --no-warnings packages/signals/src/report.ts","snapshot":"node --no-warnings packages/data/src/snapshot.ts","snapshot:cycle":"node --no-warnings apps/agent/src/snapshot-cycle.ts","test":"node --no-warnings --test packages/portfolio/test/*.test.ts"},"type":"module","version":"0.1.0"}
+{
+  "description": "Stock Agent on Base \u2014 an autonomous research-to-portfolio agent for Coinbase tokenized stocks on Base (Base Stocks Maxxing Builder Quest 2026, Agentic Stock Finance track).",
+  "engines": {
+    "node": ">=22"
+  },
+  "name": "base-stocks-agent",
+  "private": true,
+  "scripts": {
+    "agent": "node --no-warnings apps/agent/src/main.ts",
+    "decisions": "node --no-warnings packages/portfolio/src/decisions-report.ts",
+    "dex": "node --no-warnings packages/data/src/dex-report.ts",
+    "feeds": "node --no-warnings packages/data/src/feeds-report.ts",
+    "portfolio:demo": "node --no-warnings packages/portfolio/src/demo.ts",
+    "signals": "node --no-warnings packages/signals/src/report.ts",
+    "snapshot": "node --no-warnings packages/data/src/snapshot.ts",
+    "snapshot:cycle": "node --no-warnings apps/agent/src/snapshot-cycle.ts",
+    "test": "node --no-warnings --test packages/portfolio/test/*.test.ts",
+    "web": "node --no-warnings apps/web/src/server.ts"
+  },
+  "type": "module",
+  "version": "0.1.0"
+}

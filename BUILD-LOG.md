@@ -305,3 +305,104 @@ rules tests) and the Nov 20 snapshot-cadence item, both pulled forward.
   (user posts from his X).
 - **Nov 26** — LLM research-note layer over the decision records (the
   records are now rich enough to explain: full inputs, scores, rationale).
+
+---
+
+## Session 4 — Thu 2026-11-19 (night): dashboard v1 — watchlist + agent pages, visually verified
+
+This session covers the Nov 24–25 plan slot (dashboard v1), pulled forward
+because the demo video will be recorded from it this week.
+
+### What was built
+
+- `apps/web/src/server.ts` — a zero-dependency Node HTTP server (project
+  stack rules kept) that renders both pages server-side from the snapshot
+  store **on every request**, reusing the agent's own code — `computeSignals`
+  for the watchlist (freshness/premium/score identical to the agent's by
+  construction), `deserializePortfolio`/`equityUsdc` for the portfolio, and
+  the stored decision records for the log. One command: **`npm run web`**
+  (http://127.0.0.1:4173/, `PORT` to override). Pages auto-refresh every
+  2 minutes in the browser.
+- **Watchlist (`/`)** — summary cards (universe tracked, NAV tickers,
+  snapshots stored, latest snapshot time); the decision-universe table:
+  all 12 NAV tickers with live Aerodrome DEX spot, Chainlink NAV,
+  premium/discount badge measured on the deepest pool, pool depth, a
+  feed-freshness badge (fresh/stale by the engine's 26h rule, with NAV
+  age), and the composite score; below it, the other 77 tracked tokens
+  (no NAV published yet) with total supply and first-mint date.
+- **Agent page (`/agent`)** — paper-portfolio cards (equity at NAV, cash,
+  positions, trades all-time); the holdings table (quantity, avg NAV paid,
+  NAV now, value, weight, paper unrealized P&L); and the **full decision
+  log**: every stored decision record with its plain-English rationale,
+  target chips, per-action outcomes (executed / in-band no-op / guard
+  skips, each with its detail), and the scored universe behind the
+  decision (score, NAV, NAV age, premium, momentum, supply flow, depth),
+  expanded by default. The log states plainly that onchain attestation is
+  the next step — no fake transaction links.
+- Store: one small addition, `listDecisions()` (all records, newest
+  first). The placeholder `apps/web/index.html` was removed; its
+  "coming soon" copy is gone from the render path.
+- **Compliance furniture on both pages** (footer + persistent
+  "PAPER PORTFOLIO" pill): "Not financial advice", simulated-USDC /
+  simulated-trades-at-NAV labeling, "no real funds are held, moved, or at
+  risk", and the eligible-jurisdictions-outside-the-U.S. note incl.
+  "does not enable trading for U.S. users" and no rights in underlying
+  companies. No return promises anywhere; holdings P&L is labeled paper
+  accounting against the NAV paid inside the simulation.
+
+### Visual verification (mandatory pass — screenshots read, not just logs)
+
+Rendered with the stock chrome-headless-shell (swiftshader flags) against
+the live server and **inspected pixel-by-pixel** (full pages + crops).
+Final captures saved at `apps/web/preview/watchlist.png` (1440×4717) and
+`apps/web/preview/agent.png` (1440×2953), trimmed to content. What the
+captures show (store state at capture: snapshot #8, 2026-11-19 14:07 UTC):
+
+- Watchlist: 89 tracked / 12 with NAV / 8 snapshots. Decision universe
+  sorted by pool depth — AMZNc DEX $271.9068 vs NAV $272.65 (−0.27%
+  discount, $1.81M depth), NVDAc $152.897 vs $152.8522 (+0.03% premium,
+  $1.79M), SNDKc $814.17 vs $811.75 (+0.30%, $1.50M) … INTCc $226.0k the
+  shallowest of the twelve. Every feed badge reads Fresh with its real
+  age (AAPLc "13.5h old" — the held close, still inside the 26h rule).
+  The 77-row no-NAV table renders completely through WRDc; footer intact.
+- Agent: equity $100,000.00, cash $0.00, 5 positions × $20,000.00 at
+  20.0% each (AAPLc 56.3818, AMZNc 73.3541, METAc 32.0028, MSFTc 38.7247,
+  SPCXc 137.7505 tokens), paper P&L $0.00 everywhere (NAVs have not moved
+  since the buys — AAPLc still on its held close; that is the truth of
+  the data). Decision #2 (HOLD) shows its five in-band no-ops with
+  details; Decision #1 (REBALANCE) shows its five executed $20,000 buys;
+  both scored-universe tables render fully (momentum 24h honestly "—" —
+  the series was minutes old at decision time).
+- One fix came out of the inspection: the scored-universe tables were
+  initially behind a collapsed `<details>`; they now render expanded by
+  default so the full decision log is visible without interaction (and
+  reads on video). Re-captured after the fix and re-inspected.
+- No overflow, no clipped columns, no placeholder text, no broken tables
+  on either page at 1440px width.
+
+### Verified live
+
+- `npm test` still 12/12 after the store addition.
+- The cadence cron kept writing while the dashboard was built — the store
+  went from 7 → 8 snapshot runs mid-session and the rendered header
+  tracked it (Snapshot #7 in the first curl, #8 in the screenshots).
+
+### Honest gaps
+
+- Holdings P&L is $0.00 across the board because the position NAVs have
+  not moved since purchase (one is a held close). It will become
+  non-trivial as feeds update; nothing was dressed up for the screenshot.
+- Momentum 24h in the decision records is null (series too young at
+  decision time) and renders as "—". The live watchlist computes the same
+  way until the series ages (~2026-11-20 13:35 UTC for the first 24h
+  window).
+- The dashboard is local-only (127.0.0.1). Public hosting is a separate,
+  later step — deliberately not done here.
+
+### Next steps
+
+- **Demo video** recorded from these pages this week (parent agent).
+- **Nov 23** — attestation contract (Base Sepolia) + Builder Code; the
+  decision log gains real transaction links then.
+- **Nov 25** — public launch + build-in-public post #1 (user posts).
+- **Nov 26** — LLM research-note layer over the decision records.

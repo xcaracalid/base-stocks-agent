@@ -38,7 +38,7 @@ packages/signals/    Deterministic signal engine (momentum, supply flow,
                      NAV staleness, DEX-vs-NAV premium/discount)
 packages/portfolio/  Rules-based paper portfolio ledger
 apps/agent/          Agent loop entry point (snapshot → onchain checks → signals → rebalance + decision record; snapshot-cycle.ts is the data-only cadence entry)
-apps/web/            Public dashboard (placeholder — build starts Nov 24)
+apps/web/            Public dashboard v1 (watchlist + agent/decisions, `npm run web`)
 contracts/           Decision-attestation contract (placeholder — Nov 23)
 data/                Local snapshot store (gitignored, regenerated)
 ```

@@ -252,6 +252,30 @@ export class SnapshotStore {
     return row.n;
   }
 
+  /** All decision records, newest first (record_json parsed by the caller). */
+  listDecisions(): Array<{
+    id: number;
+    runId: number | null;
+    at: string;
+    kind: string;
+    tradesExecuted: number;
+    summary: string;
+    recordJson: string;
+  }> {
+    const rows = this.db
+      .prepare("SELECT * FROM decision_records ORDER BY id DESC")
+      .all() as Array<Record<string, unknown>>;
+    return rows.map((row) => ({
+      id: Number(row.id),
+      runId: row.run_id === null ? null : Number(row.run_id),
+      at: String(row.at),
+      kind: String(row.kind),
+      tradesExecuted: Number(row.trades_executed),
+      summary: String(row.summary),
+      recordJson: String(row.record_json),
+    }));
+  }
+
   latestDecision(): {
     id: number;
     runId: number | null;
