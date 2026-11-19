@@ -215,3 +215,93 @@ public RPC (`https://mainnet.base.org`, plain `eth_call`, no key, read-only).
   Builder Code attribution verified.
 - **Nov 24–25** — dashboard v1; public launch + build-in-public post #1
   (user posts from his X).
+
+---
+
+## Session 3 — Thu 2026-11-19 (night): the full loop — planner, decision records, snapshot cadence
+
+This session covers the Nov 22 plan slot (signals → planner → ledger wiring +
+rules tests) and the Nov 20 snapshot-cadence item, both pulled forward.
+
+### What was built
+
+- `packages/portfolio/src/planner.ts` — the real rebalance planner (the
+  target-weights scaffold is gone). Top-K by composite score, equal weight
+  capped at the 25% position limit; guards in order: unpriceable held
+  position → frozen; stale/missing NAV → frozen (no trading on stale feeds,
+  either direction — the planner re-checks freshness itself, on top of the
+  engine suppressing scores on stale NAV); drift inside the ±5% band →
+  recorded no-op; 24h per-ticker cooldown → deferred; buy premium > +3% →
+  blocked. Sells execute before buys so exits fund entries; buys are
+  clamped to available cash; the ledger re-enforces every rule at execution
+  and has the final say. Premium only counts where the engine measured it
+  on a pool passing the $10k depth gate (status "live").
+- **Decision records** — every cycle (trade or hold) writes one full record
+  to the store: scored universe (score, coverage, NAV + age, momentum,
+  supply flow, premium + status + pool depth), targets, positions before,
+  every planned action with its outcome, and a deterministic plain-English
+  rationale. New store tables `paper_state` (persisted portfolio) and
+  `decision_records`; new CLI `npm run decisions` to inspect both.
+- Agent cycle is now: snapshot → Chainlink cross-check → Aerodrome →
+  signals → **rebalance + decision record**. The portfolio persists across
+  cycles in the store (the old demo portfolio was in-memory only).
+- `apps/agent/src/snapshot-cycle.ts` — snapshot-only entry (API + Chainlink
+  + Aerodrome → store), the data-collection half of the loop.
+- `packages/portfolio/test/rules.test.ts` — 12 automated tests (node:test,
+  zero dependencies), all passing: ledger premium filter (rejects +3.5%,
+  allows +3.0%, never blocks sells), ledger cooldown (rejects at +1h,
+  allows at +25h), ledger position cap (rejects 25.001%, allows exactly
+  25%, insufficient-cash), planner band no-op, planner beyond-band sizing
+  ($15,000 buy to move 10% → 25%), stale-feed freeze (no exit on a stale
+  held position; stale ticker barred from targets even with a score),
+  top-K cap (5 max; 2 eligible → 25% weights, not 50%), drop-out exit with
+  sells funding buys, planner cooldown deferral, planner premium skip,
+  hold-decision record shape, persistence round-trip.
+
+### Verified live (2026-11-19 ~13:56–13:58 UTC)
+
+- **Decision #1 (snapshot #5) — REBALANCE, the initial allocation.** All 12
+  NAV tickers scored (coverage: supplyFlow + premiumDiscount; premiums this
+  cycle −0.274%…+0.603%, every one under the +3% buy cap; deepest-pool
+  depths $226k–$1.82M, all above the $10k gate). Top-5 by composite:
+  AAPLc 0.030, MSFTc 0.020, SPCXc 0.017, METAc 0.017, AMZNc 0.017 → five
+  buys of exactly $20,000.00 at live NAV (20.0% weight each): AAPLc 56.3818
+  @ $354.7244 · AMZNc 73.3541 @ $272.6500 · METAc 32.0028 @ $624.9460 ·
+  MSFTc 38.7247 @ $516.4660 · SPCXc 137.7505 @ $145.1900. Cash
+  $100,000.00 → $0.00; full decision record stored (decision #1).
+- **Decision #2 (snapshot #6, one minute later) — HOLD, correctly.** Same
+  top-5 targets; all five positions sat inside the ±5% band, so the cycle
+  recorded five deliberate band no-ops and executed nothing. The hold is in
+  the store as decision #2 with its rationale — a hold is a decision, and
+  it is auditable like one.
+- **Snapshot cadence job LIVE:** runtime cron `base-stocks-snapshot-cadence`
+  (goal-owned by web3-protocol-bug-bounties), every 20 minutes, silent on
+  success. A manual verification run fired at 20:57 WIB and succeeded; the
+  store went from 6 → **7 snapshot runs** (latest 2026-11-19T13:57:56Z,
+  48 DEX-quote rows total). The 24h momentum window starts filling from
+  tonight — the first genuine 24h momentum readings land ~2026-11-20
+  13:35 UTC, when the series is a full day old.
+
+### Honest gaps
+
+- Composite scores still rest on premium + supply flow only; momentum is
+  null until the snapshot series ages (by design — no invented history).
+  Scores remain small (0.009–0.030 this evening) and the book is therefore
+  close to an equal-weight basket of the least-premium names; that is what
+  the data honestly supports on day 1.
+- The cadence job runs the snapshot half only; full agent cycles (with
+  rebalance decisions) still run when invoked. Wiring the rebalance into
+  the cadence itself is a later call — with a 24h per-ticker cooldown, a
+  20-minute decision cycle would mostly record holds.
+- Repo publication is still blocked on the user's one-minute step (create
+  the empty public `base-stocks-agent` repo under xcaracalid; the GitHub
+  App returned 403 on create — not retried, per instructions).
+
+### Next steps (per plan)
+
+- **Nov 23** — attestation contract written + deployed to Base Sepolia;
+  Builder Code attribution verified.
+- **Nov 24–25** — dashboard v1; public launch + build-in-public post #1
+  (user posts from his X).
+- **Nov 26** — LLM research-note layer over the decision records (the
+  records are now rich enough to explain: full inputs, scores, rationale).

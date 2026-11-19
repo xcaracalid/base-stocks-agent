@@ -4,9 +4,9 @@
  * the published strategy constraints from the spec; every trade is checked
  * against them and every decision is recorded with its inputs.
  *
- * Status: ledger + rule enforcement WORKING. The automatic rebalance planner
- * (top-K by composite score) is a scaffold — it produces target weights but
- * does not execute; wiring it to the signal engine lands Nov 22.
+ * Status: ledger + rule enforcement WORKING, and the rebalance planner is
+ * implemented in planner.ts (top-K by composite score, band/cooldown/premium/
+ * stale guards) — the agent loop executes it and records every decision.
  */
 
 export const PAPER_RULES = {
@@ -145,10 +145,38 @@ export function executePaperTrade(
   return { ok: true, trade };
 }
 
+/** Serialize the portfolio for persistence in the snapshot store. */
+export function serializePortfolio(pf: PaperPortfolio): string {
+  return JSON.stringify({
+    version: 1,
+    cashUsdc: pf.cashUsdc,
+    positions: [...pf.positions.values()],
+    trades: pf.trades,
+    lastTradeAtBySymbol: Object.fromEntries(pf.lastTradeAtBySymbol),
+  });
+}
+
+export function deserializePortfolio(json: string): PaperPortfolio {
+  const raw = JSON.parse(json) as {
+    cashUsdc: number;
+    positions: PaperPosition[];
+    trades: PaperTrade[];
+    lastTradeAtBySymbol: Record<string, string>;
+  };
+  return {
+    cashUsdc: raw.cashUsdc,
+    positions: new Map(raw.positions.map((p) => [p.symbol, p])),
+    trades: raw.trades,
+    lastTradeAtBySymbol: new Map(Object.entries(raw.lastTradeAtBySymbol)),
+  };
+}
+
 /**
- * SCAFFOLD (Nov 22): target weights = equal weight across the top-K scored
- * tickers. Returns the plan only — execution goes through executePaperTrade
- * once the agent loop wires signals → planner → ledger.
+ * Target weights = equal weight across the top-K scored tickers, capped at
+ * the max position weight (with fewer than 4 eligible tickers, a naive equal
+ * split would breach the 25% cap — the remainder simply stays in cash).
+ * This is the weight half of the planner; planner.ts adds drift/band/
+ * cooldown/premium/stale handling and executes through executePaperTrade.
  */
 export function proposeTargetWeights(
   scored: Array<{ symbol: string; compositeScore: number | null }>,
@@ -158,6 +186,7 @@ export function proposeTargetWeights(
     .slice(0, PAPER_RULES.topK);
   const weights = new Map<string, number>();
   if (top.length === 0) return weights;
-  for (const t of top) weights.set(t.symbol, 1 / top.length);
+  const w = Math.min(1 / top.length, PAPER_RULES.maxPositionPct);
+  for (const t of top) weights.set(t.symbol, w);
   return weights;
 }

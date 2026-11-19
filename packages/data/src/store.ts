@@ -67,6 +67,20 @@ export class SnapshotStore {
         pools_found INTEGER NOT NULL,
         PRIMARY KEY (run_id, contract_address)
       );
+      CREATE TABLE IF NOT EXISTS paper_state (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        state_json TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS decision_records (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        run_id INTEGER,
+        at TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        trades_executed INTEGER NOT NULL,
+        summary TEXT NOT NULL,
+        record_json TEXT NOT NULL
+      );
     `);
   }
 
@@ -197,6 +211,69 @@ export class SnapshotStore {
       out.set(quote.contractAddress.toLowerCase(), quote);
     }
     return out;
+  }
+
+  /** Persisted paper-portfolio state (JSON), or null if none was ever saved. */
+  loadPaperStateJson(): string | null {
+    const row = this.db
+      .prepare("SELECT state_json FROM paper_state WHERE id = 1")
+      .get() as { state_json: string } | undefined;
+    return row ? row.state_json : null;
+  }
+
+  savePaperStateJson(stateJson: string, updatedAt = new Date()): void {
+    this.db
+      .prepare(
+        `INSERT INTO paper_state (id, state_json, updated_at) VALUES (1, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET state_json = excluded.state_json, updated_at = excluded.updated_at`,
+      )
+      .run(stateJson, updatedAt.toISOString());
+  }
+
+  /** Append one full decision record (the JSON is the inspectable artifact). */
+  recordDecision(
+    runId: number | null,
+    record: { at: string; kind: string },
+    recordJson: string,
+    summary: string,
+    tradesExecuted: number,
+  ): number {
+    const row = this.db
+      .prepare(
+        `INSERT INTO decision_records (run_id, at, kind, trades_executed, summary, record_json)
+         VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
+      )
+      .get(runId, record.at, record.kind, tradesExecuted, summary, recordJson) as { id: number };
+    return row.id;
+  }
+
+  decisionCount(): number {
+    const row = this.db.prepare("SELECT COUNT(*) AS n FROM decision_records").get() as { n: number };
+    return row.n;
+  }
+
+  latestDecision(): {
+    id: number;
+    runId: number | null;
+    at: string;
+    kind: string;
+    tradesExecuted: number;
+    summary: string;
+    recordJson: string;
+  } | null {
+    const row = this.db
+      .prepare("SELECT * FROM decision_records ORDER BY id DESC LIMIT 1")
+      .get() as Record<string, unknown> | undefined;
+    if (!row) return null;
+    return {
+      id: Number(row.id),
+      runId: row.run_id === null ? null : Number(row.run_id),
+      at: String(row.at),
+      kind: String(row.kind),
+      tradesExecuted: Number(row.trades_executed),
+      summary: String(row.summary),
+      recordJson: String(row.record_json),
+    };
   }
 
   close(): void {

@@ -24,7 +24,10 @@ Day 2 (2026-11-19): the onchain layer is live. The agent reads the Chainlink
 feeds directly on Base mainnet (cross-checked 12/12 exact against the API
 NAV) and reads Aerodrome pool state onchain — the DEX-vs-NAV
 premium/discount signal is real, computed from the deepest pool per token.
-See [BUILD-LOG.md](BUILD-LOG.md) for what is verified working vs. stubbed.
+The full loop is wired: signals → rebalance planner → rules-enforcing paper
+ledger, with a full decision record stored every cycle, and a 20-minute
+snapshot cadence job accumulating the price history the momentum windows
+need. See [BUILD-LOG.md](BUILD-LOG.md) for what is verified working vs. stubbed.
 
 ## Layout
 
@@ -34,7 +37,7 @@ packages/data/       Tokenized Stocks API client + snapshot store (SQLite),
 packages/signals/    Deterministic signal engine (momentum, supply flow,
                      NAV staleness, DEX-vs-NAV premium/discount)
 packages/portfolio/  Rules-based paper portfolio ledger
-apps/agent/          Agent loop entry point (snapshot → onchain checks → signals)
+apps/agent/          Agent loop entry point (snapshot → onchain checks → signals → rebalance + decision record; snapshot-cycle.ts is the data-only cadence entry)
 apps/web/            Public dashboard (placeholder — build starts Nov 24)
 contracts/           Decision-attestation contract (placeholder — Nov 23)
 data/                Local snapshot store (gitignored, regenerated)
@@ -51,7 +54,10 @@ npm run feeds           # cross-check the Chainlink feeds onchain against the AP
 npm run dex             # discover Aerodrome pools and print spot vs NAV per token
 npm run signals         # compute signals from the stored snapshots and print a report
 npm run portfolio:demo  # exercise the paper-portfolio ledger + rules on stored NAVs
-npm run agent           # one full agent cycle: snapshot → onchain checks → signals → summary
+npm run agent           # one full agent cycle: snapshot → onchain checks → signals → rebalance (decision record stored)
+npm run snapshot:cycle  # snapshot-only cycle (API + Chainlink + Aerodrome → store); runs every 20 min via the cadence job
+npm run decisions       # show the paper portfolio state and the latest decision record
+npm test                # rules-engine tests (ledger rules + planner guards)
 ```
 
 ## Data sources

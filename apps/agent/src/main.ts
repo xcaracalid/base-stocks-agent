@@ -4,14 +4,15 @@
  *   2. cross-check the Chainlink feeds onchain against the API NAV,
  *   3. read Aerodrome pools for the NAV tokens and store the deepest
  *      quote per token (drives the premium/discount signal),
- *   4. compute signals and print a summary.
+ *   4. compute signals,
+ *   5. run the rebalance planner against the persisted paper portfolio,
+ *      execute through the rules-enforcing ledger, and store a full
+ *      decision record (inputs, scores, actions, rationale).
  *
- * With `--loop <minutes>` it repeats on that cadence (the plan's snapshot
- * cadence is 5 minutes once deployed). All chain access is read-only
- * eth_call against the public Base RPC — no wallet, no transactions.
- *
- * The portfolio/LLM layers join this loop on Nov 22–23 and Nov 26
- * respectively (see BUILD-LOG.md).
+ * With `--loop <minutes>` it repeats on that cadence. All chain access is
+ * read-only eth_call against the public Base RPC — no wallet, no
+ * transactions. The LLM explanation layer joins on Nov 26 (see
+ * BUILD-LOG.md); decisions are the rules engine's, never the LLM's.
  */
 
 import { TokenizedStocksClient } from "../../../packages/data/src/client.ts";
@@ -21,6 +22,12 @@ import { BaseRpc } from "../../../packages/data/src/rpc.ts";
 import { ETH_USD_FEED, crossCheckFeeds, readChainlinkFeed } from "../../../packages/data/src/feeds.ts";
 import { readDexQuotes } from "../../../packages/data/src/dex.ts";
 import { computeSignals } from "../../../packages/signals/src/engine.ts";
+import {
+  createPortfolio,
+  deserializePortfolio,
+  serializePortfolio,
+} from "../../../packages/portfolio/src/paper.ts";
+import { runRebalance } from "../../../packages/portfolio/src/planner.ts";
 
 async function cycle(
   client: TokenizedStocksClient,
@@ -74,6 +81,34 @@ async function cycle(
       `  ${s.symbol.padEnd(8)} score ${s.compositeScore!.toFixed(3)} via [${s.coverage.join(", ")}]`,
     );
   }
+
+  // Rebalance: signals → planner → rules-enforcing paper ledger. The
+  // portfolio persists in the store across cycles; every cycle writes a
+  // full decision record (a hold is a decision too, and is recorded).
+  const navBySymbol = new Map(
+    snap.tokens.filter((t) => t.navPrice !== undefined).map((t) => [t.symbol, t.navPrice!]),
+  );
+  const stateJson = store.loadPaperStateJson();
+  const pf = stateJson ? deserializePortfolio(stateJson) : createPortfolio(100_000);
+  const { record, executed } = runRebalance(signals, pf, navBySymbol, snap.runId);
+  store.savePaperStateJson(serializePortfolio(pf));
+  const decisionId = store.recordDecision(
+    snap.runId,
+    record,
+    JSON.stringify(record),
+    record.rationale,
+    executed.length,
+  );
+  console.log(
+    `  Rebalance [decision #${decisionId}, ${record.kind}]: ${executed.length} trade(s) executed; ` +
+      `cash $${record.cashBeforeUsdc.toFixed(2)} → $${record.cashAfterUsdc.toFixed(2)}.`,
+  );
+  for (const t of executed) {
+    console.log(
+      `    ${t.side.toUpperCase()} ${t.symbol}: ${t.qtyTokens.toFixed(4)} tokens @ NAV $${t.navPrice.toFixed(4)} = $${t.usdcValue.toFixed(2)}`,
+    );
+  }
+  console.log(`  Rationale: ${record.rationale}`);
 }
 
 const loopIdx = process.argv.indexOf("--loop");
