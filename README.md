@@ -20,14 +20,14 @@ allowed by the quest rules.
 
 ## Status
 
-Day 2 (2026-11-19): the onchain layer is live. The agent reads the Chainlink
-feeds directly on Base mainnet (cross-checked 12/12 exact against the API
-NAV) and reads Aerodrome pool state onchain — the DEX-vs-NAV
-premium/discount signal is real, computed from the deepest pool per token.
-The full loop is wired: signals → rebalance planner → rules-enforcing paper
-ledger, with a full decision record stored every cycle, and a 20-minute
-snapshot cadence job accumulating the price history the momentum windows
-need. See [BUILD-LOG.md](BUILD-LOG.md) for what is verified working vs. stubbed.
+Day 7 (2026-11-25): 400+ snapshots stored on the 20-minute cadence — 415
+tokens tracked, 13 with Chainlink NAV (cross-checked onchain, 12/12 exact).
+The onchain layer is live, and the DecisionAttestor contract is deployed on
+Base Sepolia (`0x7ec77bAa144eb36554d50d425A57330cbF38B687`) with the first 3
+decisions attested onchain. Dashboard v1 and the demo video (2:07) are
+ready, and the project publicly launched on X:
+https://x.com/yooghrn/status/2125452412052005167
+See [BUILD-LOG.md](BUILD-LOG.md) for what is verified working vs. stubbed.
 
 ## Layout
 
@@ -39,7 +39,7 @@ packages/signals/    Deterministic signal engine (momentum, supply flow,
 packages/portfolio/  Rules-based paper portfolio ledger
 apps/agent/          Agent loop entry point (snapshot → onchain checks → signals → rebalance + decision record; snapshot-cycle.ts is the data-only cadence entry)
 apps/web/            Public dashboard v1 (watchlist + agent/decisions, `npm run web`)
-contracts/           Decision-attestation contract (placeholder — Nov 23)
+contracts/           DecisionAttestor — deployed on Base Sepolia, first 3 decisions attested
 data/                Local snapshot store (gitignored, regenerated)
 ```
 
