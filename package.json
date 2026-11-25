@@ -16,7 +16,8 @@
     "snapshot:cycle": "node --no-warnings apps/agent/src/snapshot-cycle.ts",
     "test": "node --no-warnings --test packages/portfolio/test/*.test.ts packages/attestation/test/*.test.ts",
     "test:contracts": "forge test --root contracts",
-    "web": "node --no-warnings apps/web/src/server.ts"
+    "web": "node --no-warnings apps/web/src/server.ts",
+    "web:static": "node --no-warnings scripts/build-public-dashboard.ts"
   },
   "type": "module",
   "version": "0.1.0"

@@ -1,0 +1,774 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stock Agent on Base — Agent</title>
+<style>
+  :root {
+    --bg: #0a0e1a; --panel: #111830; --panel2: #0d1428; --line: #22305a;
+    --text: #e9edf9; --muted: #8f9bbd; --faint: #5d6a8f;
+    --accent: #4d7cff; --accent-dim: #1c2f66;
+    --green: #34d399; --amber: #fbbf24; --red: #f87171;
+  }
+  * { box-sizing: border-box; }
+  html { color-scheme: dark; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5; font-size: 15px;
+  }
+  .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  a { color: var(--accent); text-decoration: none; }
+  header.top {
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, #0d1531, var(--bg));
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
+  .topbar { display: flex; align-items: center; gap: 14px; padding: 18px 0 6px; flex-wrap: wrap; }
+  .logo {
+    width: 42px; height: 42px; border-radius: 11px; flex: none;
+    background: #0052ff; color: #fff; display: grid; place-items: center;
+    font-weight: 800; font-size: 17px; letter-spacing: -0.5px;
+  }
+  .title h1 { margin: 0; font-size: 23px; letter-spacing: -0.3px; }
+  .title p { margin: 1px 0 0; color: var(--muted); font-size: 13.5px; }
+  .topright { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .pill {
+    border: 1px solid var(--line); border-radius: 999px; padding: 3px 11px;
+    font-size: 12.5px; color: var(--muted); background: var(--panel2); white-space: nowrap;
+  }
+  .pill.paper { border-color: #6b5518; color: var(--amber); }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+  .dot.live { background: var(--green); box-shadow: 0 0 7px var(--green); }
+  nav.tabs { display: flex; gap: 6px; padding: 10px 0 0; }
+  nav.tabs a {
+    padding: 7px 16px; border: 1px solid var(--line); border-bottom: none;
+    border-radius: 9px 9px 0 0; color: var(--muted); font-size: 14px; background: var(--panel2);
+  }
+  nav.tabs a.active { color: var(--text); background: var(--panel); border-color: var(--line); font-weight: 600; }
+  main { padding: 22px 0 8px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .card .k { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.7px; }
+  .card .v { font-size: 24px; font-weight: 700; margin-top: 3px; }
+  .card .s { color: var(--faint); font-size: 12.5px; margin-top: 1px; }
+  section.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 20px; overflow: hidden; }
+  section.panel > h2 { margin: 0; padding: 14px 18px 4px; font-size: 16.5px; }
+  section.panel > p.sub { margin: 0; padding: 0 18px 12px; color: var(--muted); font-size: 13px; }
+  .tblwrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th {
+    text-align: left; color: var(--muted); font-size: 11.5px; text-transform: uppercase;
+    letter-spacing: 0.6px; font-weight: 600; padding: 9px 14px; border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line); background: var(--panel2); white-space: nowrap;
+  }
+  td { padding: 9px 14px; border-bottom: 1px solid #1a2447; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: #141d3d; }
+  td.r, th.r { text-align: right; }
+  .sym { font-weight: 700; }
+  .name { color: var(--muted); font-size: 12.5px; display: block; font-weight: 400; }
+  .badge {
+    display: inline-block; border-radius: 999px; padding: 1.5px 9px; font-size: 12px;
+    border: 1px solid var(--line); white-space: nowrap;
+  }
+  .badge.green { color: var(--green); border-color: #14532d; background: #0c231a; }
+  .badge.amber { color: var(--amber); border-color: #6b5518; background: #261d05; }
+  .badge.red { color: var(--red); border-color: #6e2430; background: #2a0e13; }
+  .badge.gray { color: var(--muted); background: var(--panel2); }
+  .badge.blue { color: var(--accent); border-color: var(--accent-dim); background: #0d1a3d; }
+  .pos { color: var(--green); } .neg { color: var(--red); }
+  .muted { color: var(--muted); } .small { font-size: 12.5px; }
+  .decision { padding: 4px 18px 16px; }
+  .decision + .decision { border-top: 1px solid var(--line); }
+  .decision h3 { margin: 14px 0 2px; font-size: 15.5px; }
+  .decision .meta { color: var(--muted); font-size: 12.5px; margin-bottom: 8px; }
+  .decision p.rationale { margin: 6px 0 12px; max-width: 88ch; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 12px; }
+  details.uni { margin-top: 6px; }
+  details.uni summary { cursor: pointer; color: var(--accent); font-size: 13px; padding: 4px 0; }
+  footer { border-top: 1px solid var(--line); margin-top: 6px; }
+  footer .wrap { padding-top: 16px; padding-bottom: 30px; color: var(--faint); font-size: 12.5px; }
+  footer p { margin: 4px 0; max-width: 100ch; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="topbar">
+      <div class="logo">SA</div>
+      <div class="title">
+        <h1>Stock Agent on Base</h1>
+        <p>Autonomous research-to-portfolio agent · Coinbase tokenized stocks · Base</p>
+      </div>
+      <div class="topright">
+        <span class="pill paper">PAPER PORTFOLIO</span>
+        <span class="pill"><span class="dot live"></span>Snapshot #417 · 2026-11-25 05:07 UTC</span>
+      </div>
+    </div>
+    <nav class="tabs">
+      <a href="index.html" class="">Watchlist</a>
+      <a href="agent.html" class="active">Agent &amp; Decisions</a>
+    </nav>
+  </div>
+</header>
+<main class="wrap">
+
+  <div class="cards">
+    <div class="card"><div class="k">Paper equity (at NAV)</div><div class="v num">$93,360.71</div><div class="s">started at $100,000.00 simulated</div></div>
+    <div class="card"><div class="k">Paper cash</div><div class="v num">$0.00</div><div class="s">simulated USDC</div></div>
+    <div class="card"><div class="k">Positions</div><div class="v num">5</div><div class="s">of max 5 targets · 25% cap each</div></div>
+    <div class="card"><div class="k">Trades all-time</div><div class="v num">5</div><div class="s">all simulated, all recorded</div></div>
+  </div>
+  <section class="panel">
+    <h2>Holdings — paper portfolio</h2>
+    <p class="sub">Simulated positions valued at the latest Chainlink NAV. “Unreal. P&amp;L” is paper
+    accounting against the average NAV paid inside the simulation — not a return promise.</p>
+    <div class="tblwrap"><table>
+      <thead><tr><th>Token</th><th class="r">Qty (tokens)</th><th class="r">Avg NAV paid</th>
+      <th class="r">NAV now</th><th class="r">Value</th><th class="r">Weight</th><th class="r">Unreal. P&amp;L (paper)</th></tr></thead>
+      <tbody><tr>
+          <td><span class="sym">AAPLc</span></td>
+          <td class="r num">56.3818</td>
+          <td class="r num">$354.7244</td>
+          <td class="r num">$354.5023</td>
+          <td class="r num">$19,987.48</td>
+          <td class="r num">21.4%</td>
+          <td class="r num neg">$-12.52 (−0.06%)</td>
+        </tr>
+<tr>
+          <td><span class="sym">MSFTc</span></td>
+          <td class="r num">38.7247</td>
+          <td class="r num">$516.466</td>
+          <td class="r num">$493.1535</td>
+          <td class="r num">$19,097.23</td>
+          <td class="r num">20.5%</td>
+          <td class="r num neg">$-902.77 (−4.51%)</td>
+        </tr>
+<tr>
+          <td><span class="sym">METAc</span></td>
+          <td class="r num">32.0028</td>
+          <td class="r num">$624.946</td>
+          <td class="r num">$586.2917</td>
+          <td class="r num">$18,762.96</td>
+          <td class="r num">20.1%</td>
+          <td class="r num neg">$-1,237.04 (−6.19%)</td>
+        </tr>
+<tr>
+          <td><span class="sym">AMZNc</span></td>
+          <td class="r num">73.3541</td>
+          <td class="r num">$272.65</td>
+          <td class="r num">$251.10</td>
+          <td class="r num">$18,419.22</td>
+          <td class="r num">19.7%</td>
+          <td class="r num neg">$-1,580.78 (−7.90%)</td>
+        </tr>
+<tr>
+          <td><span class="sym">SPCXc</span></td>
+          <td class="r num">137.7505</td>
+          <td class="r num">$145.19</td>
+          <td class="r num">$124.0927</td>
+          <td class="r num">$17,093.83</td>
+          <td class="r num">18.3%</td>
+          <td class="r num neg">$-2,906.17 (−14.53%)</td>
+        </tr></tbody>
+    </table></div>
+  </section>
+  <section class="panel">
+    <h2>Onchain attestations — DecisionAttestor (Base Sepolia)</h2>
+    <p class="sub">Every decision record below is attested in the DecisionAttestor contract on Base Sepolia
+    (chain 84532): <a href="https://sepolia.basescan.org/address/0x7ec77bAa144eb36554d50d425A57330cbF38B687">0x7ec77bAa144eb36554d50d425A57330cbF38B687</a> — <strong>3 attestation(s)</strong>
+    recorded so far, read from the chain when this page was generated. Each attestation stores
+    keccak256 of the record's canonical JSON, and its metadata URI is a data: URI carrying exactly those
+    bytes — so any record can be verified from chain data alone, without trusting this page.</p>
+    <div class="tblwrap"><table>
+      <thead><tr><th class="r">#</th><th>Decision</th><th class="r">Snapshot run</th>
+      <th>Decision hash</th><th>Attested at</th><th>Attester</th></tr></thead>
+      <tbody><tr>
+        <td class="r num">0</td>
+        <td>Decision #1</td>
+        <td class="r num">5</td>
+        <td class="num" title="0xfdad16fe864fc8f78980fda3d1c642f01ee1ab8df4b9ad0383bb52b55d45cc52">0xfdad16fe…45cc52</td>
+        <td class="num">2026-11-19 23:37 UTC</td>
+        <td class="num" title="0x483c4569a73a886048cc03ec09fd30c8d91358ec">0x483c4569…1358ec</td>
+      </tr>
+<tr>
+        <td class="r num">1</td>
+        <td>Decision #2</td>
+        <td class="r num">6</td>
+        <td class="num" title="0x032e1017ad2e728c2652d0af7cbbdea7c28672c058884a1bd4564ea6d84b570f">0x032e1017…4b570f</td>
+        <td class="num">2026-11-19 23:37 UTC</td>
+        <td class="num" title="0x483c4569a73a886048cc03ec09fd30c8d91358ec">0x483c4569…1358ec</td>
+      </tr>
+<tr>
+        <td class="r num">2</td>
+        <td>Decision #3</td>
+        <td class="r num">9</td>
+        <td class="num" title="0xa6f156e16383332b1d7cf7ec48fd5e7122c862dbb84a2661e00e2054309bdc29">0xa6f156e1…9bdc29</td>
+        <td class="num">2026-11-19 23:37 UTC</td>
+        <td class="num" title="0x483c4569a73a886048cc03ec09fd30c8d91358ec">0x483c4569…1358ec</td>
+      </tr></tbody>
+    </table></div>
+  </section>
+  <section class="panel">
+    <h2>Decision log</h2>
+    <p class="sub">Every agent cycle — trade or hold — writes a full decision record: the scored universe,
+    the targets, every planned action and its outcome, and a plain-English rationale. 3 record(s) so far.
+    Every record is attested onchain in the DecisionAttestor log (panel above) and can be verified by recomputing the canonical hash of its stored JSON.</p>
+    <div class="decision">
+    <h3>Decision #3 &nbsp;<span class="badge gray">HOLD</span></h3>
+    <div class="meta num">2026-11-19 14:13 UTC · snapshot run 9 · 0 trade(s) executed ·
+      equity $100,000.00 · cash $0.00 → $0.00</div>
+    <p class="rationale">Equity $100,000.00; 12 ticker(s) carried a composite score this cycle (fresh NAV + at least one live factor required). Targets — top-5 by composite: AAPLc (0.039), MSTRc (0.038), SPCXc (0.022), AMZNc (0.019), MSFTc (0.014); equal target weight 20.0% each (position cap 25%). No trades executed. Deliberate no-ops: band: AAPLc, AMZNc, MSFTc, SPCXc; cooldown: METAc. Ledger rejections: BUY MSTRc — Insufficient paper cash after sells executed..</p>
+    <div class="chips"><span class="badge blue num">AAPLc · score 0.039 · target 20%</span><span class="badge blue num">MSTRc · score 0.038 · target 20%</span><span class="badge blue num">SPCXc · score 0.022 · target 20%</span><span class="badge blue num">AMZNc · score 0.019 · target 20%</span><span class="badge blue num">MSFTc · score 0.014 · target 20%</span></div>
+    <div class="tblwrap"><table>
+      <thead><tr><th>Token</th><th>Side</th><th class="r">Weight now → target</th><th class="r">Size</th><th>Outcome</th><th>Detail</th></tr></thead>
+      <tbody><tr>
+        <td><span class="sym">AAPLc</span></td>
+        <td>Buy</td>
+        <td class="r num">20.0% → 20.0%</td>
+        <td class="r num">—</td>
+        <td><span class="badge gray">in band — no-op</span></td>
+        <td class="muted small">Weight drift 0.00pp is inside the ±5% band.</td>
+      </tr>
+<tr>
+        <td><span class="sym">AMZNc</span></td>
+        <td>Buy</td>
+        <td class="r num">20.0% → 20.0%</td>
+        <td class="r num">—</td>
+        <td><span class="badge gray">in band — no-op</span></td>
+        <td class="muted small">Weight drift 0.00pp is inside the ±5% band.</td>
+      </tr>
+<tr>
+        <td><span class="sym">METAc</span></td>
+        <td>Sell</td>
+        <td class="r num">20.0% → 0.0%</td>
+        <td class="r num">—</td>
+        <td><span class="badge amber">cooldown</span></td>
+        <td class="muted small">Traded recently — 23.7h of the 24h per-ticker cooldown remain.</td>
+      </tr>
+<tr>
+        <td><span class="sym">MSFTc</span></td>
+        <td>Buy</td>
+        <td class="r num">20.0% → 20.0%</td>
+        <td class="r num">—</td>
+        <td><span class="badge gray">in band — no-op</span></td>
+        <td class="muted small">Weight drift 0.00pp is inside the ±5% band.</td>
+      </tr>
+<tr>
+        <td><span class="sym">MSTRc</span></td>
+        <td>Buy</td>
+        <td class="r num">0.0% → 20.0%</td>
+        <td class="r num">$20,000.00</td>
+        <td><span class="badge red">rejected</span></td>
+        <td class="muted small">Insufficient paper cash after sells executed.</td>
+      </tr>
+<tr>
+        <td><span class="sym">SPCXc</span></td>
+        <td>Buy</td>
+        <td class="r num">20.0% → 20.0%</td>
+        <td class="r num">—</td>
+        <td><span class="badge gray">in band — no-op</span></td>
+        <td class="muted small">Weight drift 0.00pp is inside the ±5% band.</td>
+      </tr></tbody>
+    </table></div>
+    <details class="uni" open>
+      <summary>Scored universe for this decision (12 tickers)</summary>
+      <div class="tblwrap"><table>
+        <thead><tr><th>Token</th><th class="r">Score</th><th class="r">NAV</th><th class="r">NAV age</th>
+        <th class="r">Premium</th><th class="r">Momentum 24h</th><th class="r">Supply flow</th><th class="r">Pool depth</th></tr></thead>
+        <tbody><tr>
+        <td><span class="sym">AAPLc</span></td>
+        <td class="r num">0.039</td>
+        <td class="r num">$354.7244</td>
+        <td class="r num">13.6h</td>
+        <td class="r num">−0.35%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$364.9k</td>
+      </tr>
+<tr>
+        <td><span class="sym">MSTRc</span></td>
+        <td class="r num">0.038</td>
+        <td class="r num">$94.015</td>
+        <td class="r num">16m</td>
+        <td class="r num">−0.34%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$534.3k</td>
+      </tr>
+<tr>
+        <td><span class="sym">SPCXc</span></td>
+        <td class="r num">0.022</td>
+        <td class="r num">$145.19</td>
+        <td class="r num">47m</td>
+        <td class="r num">−0.20%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$929.4k</td>
+      </tr>
+<tr>
+        <td><span class="sym">AMZNc</span></td>
+        <td class="r num">0.019</td>
+        <td class="r num">$272.65</td>
+        <td class="r num">36m</td>
+        <td class="r num">−0.17%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$1.80M</td>
+      </tr>
+<tr>
+        <td><span class="sym">MSFTc</span></td>
+        <td class="r num">0.014</td>
+        <td class="r num">$516.466</td>
+        <td class="r num">1.1h</td>
+        <td class="r num">−0.12%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$325.0k</td>
+      </tr>
+<tr>
+        <td><span class="sym">GOOGLc</span></td>
+        <td class="r num">-0.002</td>
+        <td class="r num">$293.9408</td>
+        <td class="r num">3.4h</td>
+        <td class="r num">+0.02%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$1.35M</td>
+      </tr>
+<tr>
+        <td><span class="sym">SNDKc</span></td>
+        <td class="r num">-0.009</td>
+        <td class="r num">$815.972</td>
+        <td class="r num">3m</td>
+        <td class="r num">+0.08%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$1.51M</td>
+      </tr>
+<tr>
+        <td><span class="sym">METAc</span></td>
+        <td class="r num">-0.016</td>
+        <td class="r num">$624.946</td>
+        <td class="r num">43m</td>
+        <td class="r num">+0.15%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$678.7k</td>
+      </tr>
+<tr>
+        <td><span class="sym">CRCLc</span></td>
+        <td class="r num">-0.024</td>
+        <td class="r num">$55.26</td>
+        <td class="r num">1.8h</td>
+        <td class="r num">+0.21%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$228.9k</td>
+      </tr>
+<tr>
+        <td><span class="sym">NVDAc</span></td>
+        <td class="r num">-0.027</td>
+        <td class="r num">$152.8522</td>
+        <td class="r num">40m</td>
+        <td class="r num">+0.24%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$1.79M</td>
+      </tr>
+<tr>
+        <td><span class="sym">INTCc</span></td>
+        <td class="r num">-0.032</td>
+        <td class="r num">$57.125</td>
+        <td class="r num">10m</td>
+        <td class="r num">+0.28%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$226.1k</td>
+      </tr>
+<tr>
+        <td><span class="sym">TSLAc</span></td>
+        <td class="r num">-0.034</td>
+        <td class="r num">$391.044</td>
+        <td class="r num">2.7h</td>
+        <td class="r num">+0.30%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$418.0k</td>
+      </tr></tbody>
+      </table></div>
+    </details>
+  </div>
+<div class="decision">
+    <h3>Decision #2 &nbsp;<span class="badge gray">HOLD</span></h3>
+    <div class="meta num">2026-11-19 13:57 UTC · snapshot run 6 · 0 trade(s) executed ·
+      equity $100,000.00 · cash $0.00 → $0.00</div>
+    <p class="rationale">Equity $100,000.00; 12 ticker(s) carried a composite score this cycle (fresh NAV + at least one live factor required). Targets — top-5 by composite: AAPLc (0.030), MSFTc (0.017), AMZNc (0.017), SPCXc (0.013), METAc (0.009); equal target weight 20.0% each (position cap 25%). No trades executed. Deliberate no-ops: band: AAPLc, AMZNc, METAc, MSFTc, SPCXc.</p>
+    <div class="chips"><span class="badge blue num">AAPLc · score 0.030 · target 20%</span><span class="badge blue num">MSFTc · score 0.017 · target 20%</span><span class="badge blue num">AMZNc · score 0.017 · target 20%</span><span class="badge blue num">SPCXc · score 0.013 · target 20%</span><span class="badge blue num">METAc · score 0.009 · target 20%</span></div>
+    <div class="tblwrap"><table>
+      <thead><tr><th>Token</th><th>Side</th><th class="r">Weight now → target</th><th class="r">Size</th><th>Outcome</th><th>Detail</th></tr></thead>
+      <tbody><tr>
+        <td><span class="sym">AAPLc</span></td>
+        <td>Buy</td>
+        <td class="r num">20.0% → 20.0%</td>
+        <td class="r num">—</td>
+        <td><span class="badge gray">in band — no-op</span></td>
+        <td class="muted small">Weight drift 0.00pp is inside the ±5% band.</td>
+      </tr>
+<tr>
+        <td><span class="sym">AMZNc</span></td>
+        <td>Buy</td>
+        <td class="r num">20.0% → 20.0%</td>
+        <td class="r num">—</td>
+        <td><span class="badge gray">in band — no-op</span></td>
+        <td class="muted small">Weight drift 0.00pp is inside the ±5% band.</td>
+      </tr>
+<tr>
+        <td><span class="sym">METAc</span></td>
+        <td>Buy</td>
+        <td class="r num">20.0% → 20.0%</td>
+        <td class="r num">—</td>
+        <td><span class="badge gray">in band — no-op</span></td>
+        <td class="muted small">Weight drift 0.00pp is inside the ±5% band.</td>
+      </tr>
+<tr>
+        <td><span class="sym">MSFTc</span></td>
+        <td>Buy</td>
+        <td class="r num">20.0% → 20.0%</td>
+        <td class="r num">—</td>
+        <td><span class="badge gray">in band — no-op</span></td>
+        <td class="muted small">Weight drift 0.00pp is inside the ±5% band.</td>
+      </tr>
+<tr>
+        <td><span class="sym">SPCXc</span></td>
+        <td>Buy</td>
+        <td class="r num">20.0% → 20.0%</td>
+        <td class="r num">—</td>
+        <td><span class="badge gray">in band — no-op</span></td>
+        <td class="muted small">Weight drift 0.00pp is inside the ±5% band.</td>
+      </tr></tbody>
+    </table></div>
+    <details class="uni" open>
+      <summary>Scored universe for this decision (12 tickers)</summary>
+      <div class="tblwrap"><table>
+        <thead><tr><th>Token</th><th class="r">Score</th><th class="r">NAV</th><th class="r">NAV age</th>
+        <th class="r">Premium</th><th class="r">Momentum 24h</th><th class="r">Supply flow</th><th class="r">Pool depth</th></tr></thead>
+        <tbody><tr>
+        <td><span class="sym">AAPLc</span></td>
+        <td class="r num">0.030</td>
+        <td class="r num">$354.7244</td>
+        <td class="r num">13.3h</td>
+        <td class="r num">−0.27%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$384.5k</td>
+      </tr>
+<tr>
+        <td><span class="sym">MSFTc</span></td>
+        <td class="r num">0.017</td>
+        <td class="r num">$516.466</td>
+        <td class="r num">51m</td>
+        <td class="r num">−0.15%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$359.0k</td>
+      </tr>
+<tr>
+        <td><span class="sym">AMZNc</span></td>
+        <td class="r num">0.017</td>
+        <td class="r num">$272.65</td>
+        <td class="r num">20m</td>
+        <td class="r num">−0.15%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$1.84M</td>
+      </tr>
+<tr>
+        <td><span class="sym">SPCXc</span></td>
+        <td class="r num">0.013</td>
+        <td class="r num">$145.19</td>
+        <td class="r num">31m</td>
+        <td class="r num">−0.12%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$953.2k</td>
+      </tr>
+<tr>
+        <td><span class="sym">METAc</span></td>
+        <td class="r num">0.009</td>
+        <td class="r num">$624.946</td>
+        <td class="r num">27m</td>
+        <td class="r num">−0.08%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$684.0k</td>
+      </tr>
+<tr>
+        <td><span class="sym">GOOGLc</span></td>
+        <td class="r num">0.007</td>
+        <td class="r num">$293.9408</td>
+        <td class="r num">3.2h</td>
+        <td class="r num">−0.06%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$1.37M</td>
+      </tr>
+<tr>
+        <td><span class="sym">NVDAc</span></td>
+        <td class="r num">-0.001</td>
+        <td class="r num">$152.8522</td>
+        <td class="r num">23m</td>
+        <td class="r num">+0.01%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$1.79M</td>
+      </tr>
+<tr>
+        <td><span class="sym">TSLAc</span></td>
+        <td class="r num">-0.003</td>
+        <td class="r num">$391.044</td>
+        <td class="r num">2.4h</td>
+        <td class="r num">+0.02%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$427.9k</td>
+      </tr>
+<tr>
+        <td><span class="sym">INTCc</span></td>
+        <td class="r num">-0.039</td>
+        <td class="r num">$56.84</td>
+        <td class="r num">22m</td>
+        <td class="r num">+0.35%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$226.3k</td>
+      </tr>
+<tr>
+        <td><span class="sym">CRCLc</span></td>
+        <td class="r num">-0.043</td>
+        <td class="r num">$55.26</td>
+        <td class="r num">1.6h</td>
+        <td class="r num">+0.39%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$228.9k</td>
+      </tr>
+<tr>
+        <td><span class="sym">MSTRc</span></td>
+        <td class="r num">-0.057</td>
+        <td class="r num">$93.545</td>
+        <td class="r num">36m</td>
+        <td class="r num">+0.51%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$538.1k</td>
+      </tr>
+<tr>
+        <td><span class="sym">SNDKc</span></td>
+        <td class="r num">-0.072</td>
+        <td class="r num">$807.555</td>
+        <td class="r num">8m</td>
+        <td class="r num">+0.65%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$1.59M</td>
+      </tr></tbody>
+      </table></div>
+    </details>
+  </div>
+<div class="decision">
+    <h3>Decision #1 &nbsp;<span class="badge blue">REBALANCE</span></h3>
+    <div class="meta num">2026-11-19 13:56 UTC · snapshot run 5 · 5 trade(s) executed ·
+      equity $100,000.00 · cash $100,000.00 → $0.00</div>
+    <p class="rationale">Equity $100,000.00; 12 ticker(s) carried a composite score this cycle (fresh NAV + at least one live factor required). Targets — top-5 by composite: AAPLc (0.030), MSFTc (0.020), SPCXc (0.017), METAc (0.017), AMZNc (0.017); equal target weight 20.0% each (position cap 25%). Executed 5 trade(s) totalling $100,000.00: BUY AAPLc $20,000.00 @ NAV $354.7244; BUY AMZNc $20,000.00 @ NAV $272.6500; BUY METAc $20,000.00 @ NAV $624.9460; BUY MSFTc $20,000.00 @ NAV $516.4660; BUY SPCXc $20,000.00 @ NAV $145.1900.</p>
+    <div class="chips"><span class="badge blue num">AAPLc · score 0.030 · target 20%</span><span class="badge blue num">MSFTc · score 0.020 · target 20%</span><span class="badge blue num">SPCXc · score 0.017 · target 20%</span><span class="badge blue num">METAc · score 0.017 · target 20%</span><span class="badge blue num">AMZNc · score 0.017 · target 20%</span></div>
+    <div class="tblwrap"><table>
+      <thead><tr><th>Token</th><th>Side</th><th class="r">Weight now → target</th><th class="r">Size</th><th>Outcome</th><th>Detail</th></tr></thead>
+      <tbody><tr>
+        <td><span class="sym">AAPLc</span></td>
+        <td>Buy</td>
+        <td class="r num">0.0% → 20.0%</td>
+        <td class="r num">$20,000.00</td>
+        <td><span class="badge green">executed</span></td>
+        <td class="muted small">New position: enter at target weight 20.0%.</td>
+      </tr>
+<tr>
+        <td><span class="sym">AMZNc</span></td>
+        <td>Buy</td>
+        <td class="r num">0.0% → 20.0%</td>
+        <td class="r num">$20,000.00</td>
+        <td><span class="badge green">executed</span></td>
+        <td class="muted small">New position: enter at target weight 20.0%.</td>
+      </tr>
+<tr>
+        <td><span class="sym">METAc</span></td>
+        <td>Buy</td>
+        <td class="r num">0.0% → 20.0%</td>
+        <td class="r num">$20,000.00</td>
+        <td><span class="badge green">executed</span></td>
+        <td class="muted small">New position: enter at target weight 20.0%.</td>
+      </tr>
+<tr>
+        <td><span class="sym">MSFTc</span></td>
+        <td>Buy</td>
+        <td class="r num">0.0% → 20.0%</td>
+        <td class="r num">$20,000.00</td>
+        <td><span class="badge green">executed</span></td>
+        <td class="muted small">New position: enter at target weight 20.0%.</td>
+      </tr>
+<tr>
+        <td><span class="sym">SPCXc</span></td>
+        <td>Buy</td>
+        <td class="r num">0.0% → 20.0%</td>
+        <td class="r num">$20,000.00</td>
+        <td><span class="badge green">executed</span></td>
+        <td class="muted small">New position: enter at target weight 20.0%.</td>
+      </tr></tbody>
+    </table></div>
+    <details class="uni" open>
+      <summary>Scored universe for this decision (12 tickers)</summary>
+      <div class="tblwrap"><table>
+        <thead><tr><th>Token</th><th class="r">Score</th><th class="r">NAV</th><th class="r">NAV age</th>
+        <th class="r">Premium</th><th class="r">Momentum 24h</th><th class="r">Supply flow</th><th class="r">Pool depth</th></tr></thead>
+        <tbody><tr>
+        <td><span class="sym">AAPLc</span></td>
+        <td class="r num">0.030</td>
+        <td class="r num">$354.7244</td>
+        <td class="r num">13.3h</td>
+        <td class="r num">−0.27%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$384.5k</td>
+      </tr>
+<tr>
+        <td><span class="sym">MSFTc</span></td>
+        <td class="r num">0.020</td>
+        <td class="r num">$516.466</td>
+        <td class="r num">51m</td>
+        <td class="r num">−0.18%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$368.2k</td>
+      </tr>
+<tr>
+        <td><span class="sym">SPCXc</span></td>
+        <td class="r num">0.017</td>
+        <td class="r num">$145.19</td>
+        <td class="r num">30m</td>
+        <td class="r num">−0.15%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$953.1k</td>
+      </tr>
+<tr>
+        <td><span class="sym">METAc</span></td>
+        <td class="r num">0.017</td>
+        <td class="r num">$624.946</td>
+        <td class="r num">26m</td>
+        <td class="r num">−0.15%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$690.7k</td>
+      </tr>
+<tr>
+        <td><span class="sym">AMZNc</span></td>
+        <td class="r num">0.017</td>
+        <td class="r num">$272.65</td>
+        <td class="r num">20m</td>
+        <td class="r num">−0.15%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$1.82M</td>
+      </tr>
+<tr>
+        <td><span class="sym">GOOGLc</span></td>
+        <td class="r num">0.012</td>
+        <td class="r num">$293.9408</td>
+        <td class="r num">3.2h</td>
+        <td class="r num">−0.11%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$1.37M</td>
+      </tr>
+<tr>
+        <td><span class="sym">NVDAc</span></td>
+        <td class="r num">0.002</td>
+        <td class="r num">$152.8522</td>
+        <td class="r num">23m</td>
+        <td class="r num">−0.02%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$1.79M</td>
+      </tr>
+<tr>
+        <td><span class="sym">TSLAc</span></td>
+        <td class="r num">-0.002</td>
+        <td class="r num">$391.044</td>
+        <td class="r num">2.4h</td>
+        <td class="r num">+0.02%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$427.9k</td>
+      </tr>
+<tr>
+        <td><span class="sym">INTCc</span></td>
+        <td class="r num">-0.037</td>
+        <td class="r num">$56.84</td>
+        <td class="r num">21m</td>
+        <td class="r num">+0.33%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$226.3k</td>
+      </tr>
+<tr>
+        <td><span class="sym">CRCLc</span></td>
+        <td class="r num">-0.041</td>
+        <td class="r num">$55.26</td>
+        <td class="r num">1.6h</td>
+        <td class="r num">+0.37%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$228.9k</td>
+      </tr>
+<tr>
+        <td><span class="sym">MSTRc</span></td>
+        <td class="r num">-0.055</td>
+        <td class="r num">$93.545</td>
+        <td class="r num">36m</td>
+        <td class="r num">+0.49%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$538.3k</td>
+      </tr>
+<tr>
+        <td><span class="sym">SNDKc</span></td>
+        <td class="r num">-0.067</td>
+        <td class="r num">$807.555</td>
+        <td class="r num">7m</td>
+        <td class="r num">+0.60%</td>
+        <td class="r num">—</td>
+        <td class="r num">0.00%</td>
+        <td class="r num">$1.52M</td>
+      </tr></tbody>
+      </table></div>
+    </details>
+  </div>
+  </section>
+</main>
+<footer>
+  <div class="wrap">
+    <p><strong>Static public snapshot</strong> of the agent's dashboard, generated 2026-11-25 05:25 UTC from the project's snapshot store (snapshot #417) with attestation data read from Base Sepolia at generation time. Rebuilt as snapshots accumulate — regenerate with <code>npm run web:static</code>.</p>
+    <p><strong>Not financial advice.</strong> This dashboard is a research demonstration built for the
+    Base Stocks Maxxing Builder Quest. The portfolio shown is a <strong>paper portfolio</strong>:
+    simulated USDC, simulated trades executed at Chainlink NAV inside the simulation only —
+    no real funds are held, moved, or at risk, and nothing here is a promise of returns.</p>
+    <p>Tokenized stocks are available only to persons in eligible jurisdictions <strong>outside the
+    United States</strong>. This project does not enable trading for U.S. users and claims no rights
+    in any underlying public company. Prices: Aerodrome DEX spot and Chainlink NAV on Base,
+    snapshotted by the agent from public sources.</p>
+  </div>
+</footer>
+</body>
+</html>

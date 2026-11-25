@@ -18,6 +18,7 @@
  */
 
 import { createServer } from "node:http";
+import { pathToFileURL } from "node:url";
 import { SnapshotStore } from "../../../packages/data/src/store.ts";
 import { computeSignals, type TokenSignals } from "../../../packages/signals/src/engine.ts";
 import {
@@ -253,7 +254,7 @@ function premiumCell(sig: TokenSignals): string {
   return `<span class="badge ${cls} num">${pct(p)} ${word}</span>${thin}`;
 }
 
-function watchlistPage(store: SnapshotStore): string {
+export function watchlistPage(store: SnapshotStore): string {
   const signals = computeSignals(store);
   const snaps = store.latestSnapshots();
   const nameByAddr = new Map(snaps.map((s) => [s.contractAddress.toLowerCase(), s]));
@@ -418,7 +419,7 @@ function decisionHtml(rec: DecisionRecord, id: number): string {
   </div>`;
 }
 
-function agentPage(store: SnapshotStore): string {
+export function agentPage(store: SnapshotStore): string {
   const snaps = store.latestSnapshots();
   const navBySymbol = new Map(
     snaps.filter((s) => s.navPrice !== undefined).map((s) => [s.symbol, s.navPrice!]),
@@ -512,6 +513,14 @@ function agentPage(store: SnapshotStore): string {
 
 // ---------------------------------------------------------------- server
 
+// Only listen when run directly (`npm run web`). The page renderers above
+// are exported so scripts/build-public-dashboard.ts can render the same
+// pages into static HTML for GitHub Pages without starting a server.
+const isMain =
+  process.argv[1] !== undefined &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isMain) {
 const server = createServer((req, res) => {
   const url = new URL(req.url ?? "/", `http://${HOST}:${PORT}`);
   if (url.pathname === "/favicon.ico") {
@@ -541,3 +550,4 @@ const server = createServer((req, res) => {
 server.listen(PORT, HOST, () => {
   console.log(`Stock Agent dashboard: http://${HOST}:${PORT}/ (watchlist) · http://${HOST}:${PORT}/agent (agent)`);
 });
+}

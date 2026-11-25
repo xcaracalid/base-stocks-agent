@@ -489,3 +489,93 @@ Deployment waits for the user's explicit approval; funding is already done.
   public launch + build-in-public post #1 (user posts).
 - **Nov 26** — LLM research-note layer over the decision records.
 - **Nov 29** — mainnet attestation contract (separate approval).
+
+### Deploy — 2026-11-20 (user approved 06:33 WIB, "Gas deploy")
+DecisionAttestor is LIVE on Base Sepolia (chain 84532):
+- Contract: 0x7ec77bAa144eb36554d50d425A57330cbF38B687
+- Deploy tx: 0xa2e20893fbd83efbe4f0fa91b403242e090d43f500ba7f245deef1a6509d3dd0 (receipt status 1)
+- Verified read-only after deploy: attestationCount() = 0, code present (~3.2 KB), deployer balance after = 0.049835869706411698 ETH
+- Note: the first attempt failed BEFORE broadcast — vm.envUint could not parse the stored key format (64 hex chars, no 0x prefix). Fixed by prefixing 0x at export time only; the key file itself was not modified and no transaction was sent by the failed attempt.
+- Broadcast record: contracts/broadcast/Deploy.s.sol/84532/run-latest.json
+- Next: configure the agent attestation module with this address and record the first decision attestation (separate user go).
+
+### First attestations — 2026-11-20 (user approved 06:36 WIB, "Gas atestasi pertama")
+All THREE stored decision records attested on DecisionAttestor (Base Sepolia) via packages/attestation/scripts/attest-stored.ts (module hash + module calldata; cast --data as transport):
+- #1 (run 5, rebalance, initial allocation): hash 0xfdad16fe864fc8f78980fda3d1c642f01ee1ab8df4b9ad0383bb52b55d45cc52 — tx 0x8d82d201c13fed0840b89b7d9a9e77119f085f2a91cee3ff8857826687c7020a
+- #2 (run 6, hold): hash 0x032e1017ad2e728c2652d0af7cbbdea7c28672c058884a1bd4564ea6d84b570f — tx 0xed7e119327093d3715c0d0f758f16ece295e557017c01f698731d05d42e34c5f
+- #3 (run 9, hold): hash 0xa6f156e16383332b1d7cf7ec48fd5e7122c862dbb84a2661e00e2054309bdc29 — tx 0xef7fbe127bc0bf37a0c4e3faa5ba43a5de3216a9fe34a56815dfb0cc5ce68d9e
+URI = data:application/json carrying the record's canonical JSON. Verified onchain after submission: attestationCount = 3; every getAttestation hash + runId + attester matches; every URI re-hashes to exactly its attested hash (self-verifying from chain data alone).
+
+---
+
+## Session 7 — Tue 2026-11-25: static public dashboard (GitHub Pages) + attestation status check
+
+User-approved follow-up to the Nov 25 public launch (X thread live). Two
+workstreams: (A) make the dashboard publicly viewable, (B) grow the
+onchain attestation count if un-attested decisions exist.
+
+### A — Static public dashboard
+
+- `scripts/build-public-dashboard.ts` (new) + `npm run web:static`:
+  renders the SAME two pages as the live server from the real snapshot
+  store, then adapts them for static hosting — nav links rewritten to
+  `index.html` / `agent.html`, the live pages' 120 s auto-refresh removed,
+  a generation stamp added to the footer, and an **Onchain attestations
+  panel** injected into the agent page, read live from the
+  DecisionAttestor on Base Sepolia at generation time (count + one row
+  per attestation: decision #, snapshot run, decision hash, attested-at,
+  attester, contract linked to Basescan Sepolia). The static agent page
+  also replaces the live page's now-stale "attestation is the next build
+  step" copy; the live server's own copy is untouched.
+- `apps/web/src/server.ts`: minimal refactor only — `watchlistPage` /
+  `agentPage` are now exported and the HTTP listener starts only when the
+  file is run directly. Verified after the refactor: `npm run web` still
+  serves `/` and `/agent` (HTTP 200/200) and `npm test` is still 23/23.
+- Generated output in `docs/` (the GitHub Pages source folder):
+  `index.html`, `agent.html`, `.nojekyll`. This generation used snapshot
+  **#417** (2026-11-25 05:07 UTC): universe **415 tokens, 13 with a
+  Chainlink NAV** (ANTc joined since Nov 19), paper equity **$93,360.71**
+  at current NAVs (the Nov 19 book marked against live feeds — shown
+  plainly, losses included), 3 decision records, 3 onchain attestations.
+- **Visual verification (screenshots read, not logs):** both pages
+  rendered headlessly from a local static server and inspected —
+  watchlist: all 13 decision-universe rows with live DEX/NAV/premium/
+  depth/freshness + the 402-row no-NAV table; agent: holdings with real
+  P&L, the attestation panel with the correct 3 rows (runs 5/6/9, hashes
+  matching the Nov 20 entries), and the full decision log. No overflow,
+  no placeholder text. Captures: `apps/web/preview/public-index.png`,
+  `apps/web/preview/public-agent.png`.
+- **NOT published yet.** Nothing was pushed and no repo setting was
+  touched. Remaining step: push `docs/` via the GitHub connector, then
+  the user enables Pages in repo Settings (source: main branch, `/docs`
+  folder). The public URL will be
+  **https://xcaracalid.github.io/base-stocks-agent/**. Re-run
+  `npm run web:static` (and re-push) as snapshots accumulate — the
+  20-minute cadence keeps writing (417 runs and counting).
+
+### B — Attestation growth: checked, nothing new to attest
+
+Read-only onchain checks (cast, Base Sepolia, 2026-11-25):
+
+- `attestationCount()` = **3** (unchanged). `getAttestation(0..2)`
+  match the stored decisions exactly: #1 run 5 `0xfdad16fe…45cc52`,
+  #2 run 6 `0x032e1017…4b570f`, #3 run 9 `0xa6f156e1…9bdc29`, attester
+  `0x483C4569a73a886048cc03Ec09Fd30C8d91358Ec`, attested 2026-11-19
+  23:37 UTC — identical to the Nov 20 log above.
+- Deployer EOA balance: **0.049231236563256171 ETH** (0.049835869706411698
+  after the deploy; the difference is the 3 attestation transactions).
+  Gas is NOT the constraint — Sepolia attestations cost ~0.0002 ETH each.
+- **Blocker: there are no un-attested decision records.** The store
+  still holds exactly the same 3 decision records (ids 1–3, runs 5/6/9,
+  all from 2026-11-19). The 20-minute cadence runs snapshot-only cycles
+  (`snapshot-cycle.ts` writes no decision records), and no full agent
+  cycle has run since Nov 19, so nothing new exists to attest.
+  `attest-stored.ts` attests ALL stored records with no skip logic, so
+  running it now would only duplicate the same 3 attestations onchain —
+  not done. **No transactions were sent in this session**, and the
+  deployer key file was never opened or read (only read-only `cast call`
+  / `cast balance` were used).
+- What would unblock it: run full agent cycles (`npm run agent`) so new
+  decision records are produced, then attest the new ones. That is a
+  product decision (it can move the paper portfolio), deliberately not
+  taken inside this session.

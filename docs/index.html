@@ -1,0 +1,3091 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stock Agent on Base — Watchlist</title>
+<style>
+  :root {
+    --bg: #0a0e1a; --panel: #111830; --panel2: #0d1428; --line: #22305a;
+    --text: #e9edf9; --muted: #8f9bbd; --faint: #5d6a8f;
+    --accent: #4d7cff; --accent-dim: #1c2f66;
+    --green: #34d399; --amber: #fbbf24; --red: #f87171;
+  }
+  * { box-sizing: border-box; }
+  html { color-scheme: dark; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5; font-size: 15px;
+  }
+  .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  a { color: var(--accent); text-decoration: none; }
+  header.top {
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, #0d1531, var(--bg));
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
+  .topbar { display: flex; align-items: center; gap: 14px; padding: 18px 0 6px; flex-wrap: wrap; }
+  .logo {
+    width: 42px; height: 42px; border-radius: 11px; flex: none;
+    background: #0052ff; color: #fff; display: grid; place-items: center;
+    font-weight: 800; font-size: 17px; letter-spacing: -0.5px;
+  }
+  .title h1 { margin: 0; font-size: 23px; letter-spacing: -0.3px; }
+  .title p { margin: 1px 0 0; color: var(--muted); font-size: 13.5px; }
+  .topright { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .pill {
+    border: 1px solid var(--line); border-radius: 999px; padding: 3px 11px;
+    font-size: 12.5px; color: var(--muted); background: var(--panel2); white-space: nowrap;
+  }
+  .pill.paper { border-color: #6b5518; color: var(--amber); }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+  .dot.live { background: var(--green); box-shadow: 0 0 7px var(--green); }
+  nav.tabs { display: flex; gap: 6px; padding: 10px 0 0; }
+  nav.tabs a {
+    padding: 7px 16px; border: 1px solid var(--line); border-bottom: none;
+    border-radius: 9px 9px 0 0; color: var(--muted); font-size: 14px; background: var(--panel2);
+  }
+  nav.tabs a.active { color: var(--text); background: var(--panel); border-color: var(--line); font-weight: 600; }
+  main { padding: 22px 0 8px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .card .k { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.7px; }
+  .card .v { font-size: 24px; font-weight: 700; margin-top: 3px; }
+  .card .s { color: var(--faint); font-size: 12.5px; margin-top: 1px; }
+  section.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 20px; overflow: hidden; }
+  section.panel > h2 { margin: 0; padding: 14px 18px 4px; font-size: 16.5px; }
+  section.panel > p.sub { margin: 0; padding: 0 18px 12px; color: var(--muted); font-size: 13px; }
+  .tblwrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th {
+    text-align: left; color: var(--muted); font-size: 11.5px; text-transform: uppercase;
+    letter-spacing: 0.6px; font-weight: 600; padding: 9px 14px; border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line); background: var(--panel2); white-space: nowrap;
+  }
+  td { padding: 9px 14px; border-bottom: 1px solid #1a2447; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: #141d3d; }
+  td.r, th.r { text-align: right; }
+  .sym { font-weight: 700; }
+  .name { color: var(--muted); font-size: 12.5px; display: block; font-weight: 400; }
+  .badge {
+    display: inline-block; border-radius: 999px; padding: 1.5px 9px; font-size: 12px;
+    border: 1px solid var(--line); white-space: nowrap;
+  }
+  .badge.green { color: var(--green); border-color: #14532d; background: #0c231a; }
+  .badge.amber { color: var(--amber); border-color: #6b5518; background: #261d05; }
+  .badge.red { color: var(--red); border-color: #6e2430; background: #2a0e13; }
+  .badge.gray { color: var(--muted); background: var(--panel2); }
+  .badge.blue { color: var(--accent); border-color: var(--accent-dim); background: #0d1a3d; }
+  .pos { color: var(--green); } .neg { color: var(--red); }
+  .muted { color: var(--muted); } .small { font-size: 12.5px; }
+  .decision { padding: 4px 18px 16px; }
+  .decision + .decision { border-top: 1px solid var(--line); }
+  .decision h3 { margin: 14px 0 2px; font-size: 15.5px; }
+  .decision .meta { color: var(--muted); font-size: 12.5px; margin-bottom: 8px; }
+  .decision p.rationale { margin: 6px 0 12px; max-width: 88ch; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 12px; }
+  details.uni { margin-top: 6px; }
+  details.uni summary { cursor: pointer; color: var(--accent); font-size: 13px; padding: 4px 0; }
+  footer { border-top: 1px solid var(--line); margin-top: 6px; }
+  footer .wrap { padding-top: 16px; padding-bottom: 30px; color: var(--faint); font-size: 12.5px; }
+  footer p { margin: 4px 0; max-width: 100ch; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="topbar">
+      <div class="logo">SA</div>
+      <div class="title">
+        <h1>Stock Agent on Base</h1>
+        <p>Autonomous research-to-portfolio agent · Coinbase tokenized stocks · Base</p>
+      </div>
+      <div class="topright">
+        <span class="pill paper">PAPER PORTFOLIO</span>
+        <span class="pill"><span class="dot live"></span>Snapshot #417 · 2026-11-25 05:07 UTC</span>
+      </div>
+    </div>
+    <nav class="tabs">
+      <a href="index.html" class="active">Watchlist</a>
+      <a href="agent.html" class="">Agent &amp; Decisions</a>
+    </nav>
+  </div>
+</header>
+<main class="wrap">
+
+  <div class="cards">
+    <div class="card"><div class="k">Universe tracked</div><div class="v num">415</div><div class="s">tokenized stocks on Base</div></div>
+    <div class="card"><div class="k">With Chainlink NAV</div><div class="v num">13</div><div class="s">the agent's decision universe</div></div>
+    <div class="card"><div class="k">Snapshots stored</div><div class="v num">417</div><div class="s">taken every 20 minutes</div></div>
+    <div class="card"><div class="k">Latest snapshot</div><div class="v num" style="font-size:19px;padding-top:5px">2026-11-25 05:07 UTC</div><div class="s">API + Chainlink + Aerodrome</div></div>
+  </div>
+
+  <section class="panel">
+    <h2>Decision universe — tokenized stocks with a Chainlink NAV</h2>
+    <p class="sub">Live Aerodrome DEX spot vs the Chainlink reference NAV the agent trades on (in simulation).
+    Premium/discount is measured on each token's deepest pool; pools under $10k depth are excluded from the signal.</p>
+    <div class="tblwrap"><table>
+      <thead><tr>
+        <th>Token</th><th class="r">DEX price</th><th class="r">Chainlink NAV</th>
+        <th class="r">Premium / discount</th><th class="r">Pool depth</th><th>Feed</th><th class="r">Score</th>
+      </tr></thead>
+      <tbody><tr>
+        <td><span class="sym">NVDAc</span><span class="name">NVIDIA Corporation</span></td>
+        <td class="r num">$152.5535</td>
+        <td class="r num">$152.0364</td>
+        <td class="r"><span class="badge amber num">+0.34% premium</span></td>
+        <td class="r num">$1.98M</td>
+        <td><span class="badge green"><span class="dot" style="background:var(--green)"></span>Fresh · 2.2h old</span></td>
+        <td class="r num">-0.043</td>
+      </tr>
+<tr>
+        <td><span class="sym">GOOGLc</span><span class="name">Alphabet Inc.</span></td>
+        <td class="r num">$276.5621</td>
+        <td class="r num">$277.5164</td>
+        <td class="r"><span class="badge green num">−0.34% discount</span></td>
+        <td class="r num">$1.73M</td>
+        <td><span class="badge green"><span class="dot" style="background:var(--green)"></span>Fresh · 3.1h old</span></td>
+        <td class="r num">0.129</td>
+      </tr>
+<tr>
+        <td><span class="sym">AMZNc</span><span class="name">Amazon.com Inc.</span></td>
+        <td class="r num">$250.3435</td>
+        <td class="r num">$251.10</td>
+        <td class="r"><span class="badge green num">−0.30% discount</span></td>
+        <td class="r num">$1.51M</td>
+        <td><span class="badge green"><span class="dot" style="background:var(--green)"></span>Fresh · 5.2h old</span></td>
+        <td class="r num">0.203</td>
+      </tr>
+<tr>
+        <td><span class="sym">SNDKc</span><span class="name">Sandisk Corporation</span></td>
+        <td class="r num">$600.3618</td>
+        <td class="r num">$597.521</td>
+        <td class="r"><span class="badge amber num">+0.48% premium</span></td>
+        <td class="r num">$1.44M</td>
+        <td><span class="badge green"><span class="dot" style="background:var(--green)"></span>Fresh · 42m old</span></td>
+        <td class="r num">-0.165</td>
+      </tr>
+<tr>
+        <td><span class="sym">ANTc</span><span class="name">Anthropic, PBC</span></td>
+        <td class="r num">$79.7109</td>
+        <td class="r num">$79.4554</td>
+        <td class="r"><span class="badge amber num">+0.32% premium</span></td>
+        <td class="r num">$1.23M</td>
+        <td><span class="badge green"><span class="dot" style="background:var(--green)"></span>Fresh · 37m old</span></td>
+        <td class="r num">-0.058</td>
+      </tr>
+<tr>
+        <td><span class="sym">SPCXc</span><span class="name">Space Exploration Technologies Corp.</span></td>
+        <td class="r num">$124.3927</td>
+        <td class="r num">$124.0927</td>
+        <td class="r"><span class="badge amber num">+0.24% premium</span></td>
+        <td class="r num">$1.07M</td>
+        <td><span class="badge green"><span class="dot" style="background:var(--green)"></span>Fresh · 2.5h old</span></td>
+        <td class="r num">-0.040</td>
+      </tr>
+<tr>
+        <td><span class="sym">METAc</span><span class="name">Meta Platforms Inc.</span></td>
+        <td class="r num">$584.3138</td>
+        <td class="r num">$586.2917</td>
+        <td class="r"><span class="badge green num">−0.34% discount</span></td>
+        <td class="r num">$717.0k</td>
+        <td><span class="badge green"><span class="dot" style="background:var(--green)"></span>Fresh · 4.3h old</span></td>
+        <td class="r num">0.096</td>
+      </tr>
+<tr>
+        <td><span class="sym">MSTRc</span><span class="name">Strategy Inc.</span></td>
+        <td class="r num">$76.5892</td>
+        <td class="r num">$76.1924</td>
+        <td class="r"><span class="badge amber num">+0.52% premium</span></td>
+        <td class="r num">$469.4k</td>
+        <td><span class="badge green"><span class="dot" style="background:var(--green)"></span>Fresh · 42m old</span></td>
+        <td class="r num">-0.082</td>
+      </tr>
+<tr>
+        <td><span class="sym">TSLAc</span><span class="name">Tesla Inc.</span></td>
+        <td class="r num">$381.4046</td>
+        <td class="r num">$381.084</td>
+        <td class="r"><span class="badge amber num">+0.08% premium</span></td>
+        <td class="r num">$438.7k</td>
+        <td><span class="badge green"><span class="dot" style="background:var(--green)"></span>Fresh · 3.0h old</span></td>
+        <td class="r num">-0.196</td>
+      </tr>
+<tr>
+        <td><span class="sym">AAPLc</span><span class="name">Apple Inc.</span></td>
+        <td class="r num">$352.9887</td>
+        <td class="r num">$354.5023</td>
+        <td class="r"><span class="badge green num">−0.43% discount</span></td>
+        <td class="r num">$434.2k</td>
+        <td><span class="badge green"><span class="dot" style="background:var(--green)"></span>Fresh · 8.4h old</span></td>
+        <td class="r num">-0.155</td>
+      </tr>
+<tr>
+        <td><span class="sym">MSFTc</span><span class="name">Microsoft Corporation</span></td>
+        <td class="r num">$492.6878</td>
+        <td class="r num">$493.1535</td>
+        <td class="r"><span class="badge green num">−0.09% discount</span></td>
+        <td class="r num">$434.2k</td>
+        <td><span class="badge green"><span class="dot" style="background:var(--green)"></span>Fresh · 3.0h old</span></td>
+        <td class="r num">-0.258</td>
+      </tr>
+<tr>
+        <td><span class="sym">INTCc</span><span class="name">Intel Corporation</span></td>
+        <td class="r num">$53.8733</td>
+        <td class="r num">$53.6216</td>
+        <td class="r"><span class="badge amber num">+0.47% premium</span></td>
+        <td class="r num">$222.0k</td>
+        <td><span class="badge green"><span class="dot" style="background:var(--green)"></span>Fresh · 42m old</span></td>
+        <td class="r num">-0.059</td>
+      </tr>
+<tr>
+        <td><span class="sym">CRCLc</span><span class="name">Circle Internet Group Inc.</span></td>
+        <td class="r num">$47.1973</td>
+        <td class="r num">$47.1181</td>
+        <td class="r"><span class="badge amber num">+0.17% premium</span></td>
+        <td class="r num">$218.1k</td>
+        <td><span class="badge green"><span class="dot" style="background:var(--green)"></span>Fresh · 45m old</span></td>
+        <td class="r num">-0.051</td>
+      </tr></tbody>
+    </table></div>
+  </section>
+
+  <section class="panel">
+    <h2>Also tracked — no NAV published yet</h2>
+    <p class="sub">The agent snapshots the full listed universe. These 402 tokens do not currently publish a
+    Chainlink NAV, so no premium can be computed and they stay outside the decision universe until a NAV appears.</p>
+    <div class="tblwrap"><table>
+      <thead><tr><th>Token</th><th>Name</th><th class="r">Total supply</th><th class="r">First mint</th><th>Status</th></tr></thead>
+      <tbody><tr>
+        <td><span class="sym">AALc</span></td>
+        <td class="muted">American Airlines Group Inc.</td>
+        <td class="r num">160</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">AAOIc</span></td>
+        <td class="muted">Applied Optoelectronics Inc</td>
+        <td class="r num">3,118</td>
+        <td class="r muted num">2026-10-26</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">AAPc</span></td>
+        <td class="muted">Advance Auto Parts, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ABNBc</span></td>
+        <td class="muted">Airbnb, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ABSIc</span></td>
+        <td class="muted">Absci Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ABTc</span></td>
+        <td class="muted">Abbott Laboratories</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ACHRc</span></td>
+        <td class="muted">Archer Aviation Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ACIc</span></td>
+        <td class="muted">Albertsons Companies, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ACMRc</span></td>
+        <td class="muted">ACM Research, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ADBEc</span></td>
+        <td class="muted">Adobe Inc.</td>
+        <td class="r num">600</td>
+        <td class="r muted num">2026-11-23</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ADIc</span></td>
+        <td class="muted">Analog Devices, Inc.</td>
+        <td class="r num">6</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">AEHRc</span></td>
+        <td class="muted">Aehr Test Systems</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">AEOc</span></td>
+        <td class="muted">American Eagle Outfitters, Inc.</td>
+        <td class="r num">82</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">AFRMc</span></td>
+        <td class="muted">Affirm Holdings, Inc.</td>
+        <td class="r num">34</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">AIc</span></td>
+        <td class="muted">C3.ai, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ALABc</span></td>
+        <td class="muted">Astera Labs, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ALLc</span></td>
+        <td class="muted">The Allstate Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ALNTc</span></td>
+        <td class="muted">Allient Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">AMATc</span></td>
+        <td class="muted">Applied Materials, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">AMCc</span></td>
+        <td class="muted">AMC Entertainment Holdings, Inc.</td>
+        <td class="r num">9,262</td>
+        <td class="r muted num">2026-10-23</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">AMDc</span></td>
+        <td class="muted">Advanced Micro Devices, Inc.</td>
+        <td class="r num">1,306</td>
+        <td class="r muted num">2026-09-28</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">AMGNc</span></td>
+        <td class="muted">Amgen Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">AMKRc</span></td>
+        <td class="muted">Amkor Technology, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">AMPXc</span></td>
+        <td class="muted">Amprius Technologies, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ANETc</span></td>
+        <td class="muted">Arista Networks, Inc.</td>
+        <td class="r num">150</td>
+        <td class="r muted num">2026-11-17</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ANFc</span></td>
+        <td class="muted">Abercrombie &amp; Fitch Co.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ANNXc</span></td>
+        <td class="muted">Annexon, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">APLDc</span></td>
+        <td class="muted">Applied Digital Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">APPc</span></td>
+        <td class="muted">AppLovin Corporation</td>
+        <td class="r num">66</td>
+        <td class="r muted num">2026-10-23</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ARMc</span></td>
+        <td class="muted">Arm Holdings plc</td>
+        <td class="r num">231</td>
+        <td class="r muted num">2026-10-09</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ASSTc</span></td>
+        <td class="muted">Strive, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ASTSc</span></td>
+        <td class="muted">AST SpaceMobile, Inc.</td>
+        <td class="r num">121</td>
+        <td class="r muted num">2026-09-28</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">AURc</span></td>
+        <td class="muted">Aurora Innovation, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">AVAVc</span></td>
+        <td class="muted">AeroVironment, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">AVGOc</span></td>
+        <td class="muted">Broadcom Inc.</td>
+        <td class="r num">1,097</td>
+        <td class="r muted num">2026-09-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">AXONc</span></td>
+        <td class="muted">Axon Enterprise, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">AXPc</span></td>
+        <td class="muted">American Express Company</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">AXTIc</span></td>
+        <td class="muted">AXT Inc</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">BAc</span></td>
+        <td class="muted">The Boeing Company</td>
+        <td class="r num">12</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">BACc</span></td>
+        <td class="muted">Bank of America Corporation</td>
+        <td class="r num">522</td>
+        <td class="r muted num">2026-11-17</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">BALLc</span></td>
+        <td class="muted">Ball Corporation</td>
+        <td class="r num">28</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">BBAIc</span></td>
+        <td class="muted">BigBear.ai Holdings, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">BEAMc</span></td>
+        <td class="muted">Beam Therapeutics Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">BEc</span></td>
+        <td class="muted">Bloom Energy Corporation</td>
+        <td class="r num">1,631</td>
+        <td class="r muted num">2026-09-28</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">BIDUc</span></td>
+        <td class="muted">Baidu, Inc.</td>
+        <td class="r num">405</td>
+        <td class="r muted num">2026-10-09</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">BIIBc</span></td>
+        <td class="muted">Biogen Inc.</td>
+        <td class="r num">8</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">BILIc</span></td>
+        <td class="muted">Bilibili Inc.</td>
+        <td class="r num">2,350</td>
+        <td class="r muted num">2026-10-09</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">BIRDc</span></td>
+        <td class="muted">Smartbird, Inc.</td>
+        <td class="r num">1</td>
+        <td class="r muted num">2026-10-06</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">BJc</span></td>
+        <td class="muted">BJ's Wholesale Club Holdings, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">BKSYc</span></td>
+        <td class="muted">BlackSky Technology Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">BLNKc</span></td>
+        <td class="muted">Blink Charging Co.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">BMNRc</span></td>
+        <td class="muted">BitMine Immersion Technologies, Inc.</td>
+        <td class="r num">1</td>
+        <td class="r muted num">2026-10-26</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">BNCc</span></td>
+        <td class="muted">BNB Standard Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">BOOTc</span></td>
+        <td class="muted">Boot Barn Holdings, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">BRK.Bc</span></td>
+        <td class="muted">Berkshire Hathaway Inc. Class B</td>
+        <td class="r num">251</td>
+        <td class="r muted num">2026-11-16</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">BROSc</span></td>
+        <td class="muted">Dutch Bros Inc.</td>
+        <td class="r num">57</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">BUDc</span></td>
+        <td class="muted">Anheuser-Busch InBev SA/NV</td>
+        <td class="r num">418</td>
+        <td class="r muted num">2026-10-09</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">BWc</span></td>
+        <td class="muted">Babcock &amp; Wilcox Enterprises, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">BXc</span></td>
+        <td class="muted">Blackstone Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">BYNDc</span></td>
+        <td class="muted">Beyond Meat, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">BZFDc</span></td>
+        <td class="muted">BuzzFeed, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">CADLc</span></td>
+        <td class="muted">Candel Therapeutics, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">CAKEc</span></td>
+        <td class="muted">Cheesecake Factory Inc</td>
+        <td class="r num">2</td>
+        <td class="r muted num">2026-09-29</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">CANc</span></td>
+        <td class="muted">Canaan Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">CATc</span></td>
+        <td class="muted">Caterpillar Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">CAVAc</span></td>
+        <td class="muted">CAVA Group, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">CBRSc</span></td>
+        <td class="muted">Cerebras Systems Inc.</td>
+        <td class="r num">3</td>
+        <td class="r muted num">2026-10-23</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">CCc</span></td>
+        <td class="muted">The Chemours Company</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">CEGc</span></td>
+        <td class="muted">Constellation Energy Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">CELHc</span></td>
+        <td class="muted">Celsius Holdings, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">CGNXc</span></td>
+        <td class="muted">Cognex Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">CHPTc</span></td>
+        <td class="muted">ChargePoint Holdings, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">CHWYc</span></td>
+        <td class="muted">Chewy, Inc.</td>
+        <td class="r num">92</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">CIENc</span></td>
+        <td class="muted">Ciena Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">CIFRc</span></td>
+        <td class="muted">Cipher Digital Inc.</td>
+        <td class="r num">330</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">CLFc</span></td>
+        <td class="muted">Cleveland-Cliffs Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">CLOVc</span></td>
+        <td class="muted">Clover Health Investments, Corp.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">CLSKc</span></td>
+        <td class="muted">CleanSpark, Inc.</td>
+        <td class="r num">370</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">CMCSAc</span></td>
+        <td class="muted">Comcast Corporation</td>
+        <td class="r num">79</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">CMGc</span></td>
+        <td class="muted">Chipotle Mexican Grill, Inc.</td>
+        <td class="r num">715</td>
+        <td class="r muted num">2026-11-17</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">COHRc</span></td>
+        <td class="muted">Coherent Corp.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">COHUc</span></td>
+        <td class="muted">Cohu, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">COMPc</span></td>
+        <td class="muted">Compass, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">COPc</span></td>
+        <td class="muted">ConocoPhillips</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">CORZc</span></td>
+        <td class="muted">Core Scientific, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">CPNGc</span></td>
+        <td class="muted">Coupang, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">CRMc</span></td>
+        <td class="muted">Salesforce, Inc.</td>
+        <td class="r num">140</td>
+        <td class="r muted num">2026-11-17</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">CRMDc</span></td>
+        <td class="muted">CorMedix Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">CROXc</span></td>
+        <td class="muted">Crocs, Inc.</td>
+        <td class="r num">13</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">CRVSc</span></td>
+        <td class="muted">Corvus Pharmaceuticals, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">CRWDc</span></td>
+        <td class="muted">CrowdStrike Holdings, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">CRWVc</span></td>
+        <td class="muted">CoreWeave, Inc.</td>
+        <td class="r num">2,605</td>
+        <td class="r muted num">2026-10-23</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">CSCOc</span></td>
+        <td class="muted">Cisco Systems, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">CVNAc</span></td>
+        <td class="muted">Carvana Co.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">CVXc</span></td>
+        <td class="muted">Chevron Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">DASHc</span></td>
+        <td class="muted">DoorDash, Inc.</td>
+        <td class="r num">12</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">DAVEc</span></td>
+        <td class="muted">Dave Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">DDOGc</span></td>
+        <td class="muted">Datadog, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">DECKc</span></td>
+        <td class="muted">Deckers Outdoor Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">DELLc</span></td>
+        <td class="muted">Dell Technologies Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">DHRc</span></td>
+        <td class="muted">Danaher Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">DISc</span></td>
+        <td class="muted">The Walt Disney Company</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">DJTc</span></td>
+        <td class="muted">Trump Media &amp; Technology Group Corp.</td>
+        <td class="r num">9,781</td>
+        <td class="r muted num">2026-09-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">DKSc</span></td>
+        <td class="muted">DICK'S Sporting Goods, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">DNAc</span></td>
+        <td class="muted">Ginkgo Bioworks Holdings, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">DNUTc</span></td>
+        <td class="muted">Krispy Kreme, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">DOCNc</span></td>
+        <td class="muted">DigitalOcean Holdings, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">DRIc</span></td>
+        <td class="muted">Darden Restaurants, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">DUOLc</span></td>
+        <td class="muted">Duolingo, Inc.</td>
+        <td class="r num">22</td>
+        <td class="r muted num">2026-09-29</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">EATc</span></td>
+        <td class="muted">Brinker International, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">EBAYc</span></td>
+        <td class="muted">eBay Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ELFc</span></td>
+        <td class="muted">e.l.f. Beauty, Inc.</td>
+        <td class="r num">19</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">EMRc</span></td>
+        <td class="muted">Emerson Electric Co.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ENPHc</span></td>
+        <td class="muted">Enphase Energy, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ENVXc</span></td>
+        <td class="muted">Enovix Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ESc</span></td>
+        <td class="muted">Eversource Energy</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ETSYc</span></td>
+        <td class="muted">Etsy, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">EVERc</span></td>
+        <td class="muted">EverQuote, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">Fc</span></td>
+        <td class="muted">Ford Motor Company</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">FIGc</span></td>
+        <td class="muted">Figma, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">FIGRc</span></td>
+        <td class="muted">Figure Technology Solutions, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">FIGSc</span></td>
+        <td class="muted">FIGS, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">FIZZc</span></td>
+        <td class="muted">National Beverage Corp.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">FLNCc</span></td>
+        <td class="muted">Fluence Energy, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">FLYc</span></td>
+        <td class="muted">Firefly Aerospace Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">FMCc</span></td>
+        <td class="muted">FMC Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">FOURc</span></td>
+        <td class="muted">Shift4 Payments, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">FPSc</span></td>
+        <td class="muted">Forgent Power Solutions, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">FSLRc</span></td>
+        <td class="muted">First Solar, Inc.</td>
+        <td class="r num">14</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">FUBOc</span></td>
+        <td class="muted">FuboTV Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">FUNc</span></td>
+        <td class="muted">Six Flags Entertainment Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">FWDIc</span></td>
+        <td class="muted">Forward Industries, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">GAMEc</span></td>
+        <td class="muted">GameSquare Holdings, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">GAPc</span></td>
+        <td class="muted">The Gap, Inc.</td>
+        <td class="r num">91</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">GEc</span></td>
+        <td class="muted">General Electric Company</td>
+        <td class="r num">6</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">GEMIc</span></td>
+        <td class="muted">Gemini Space Station, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">GILDc</span></td>
+        <td class="muted">Gilead Sciences, Inc.</td>
+        <td class="r num">12</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">GLWc</span></td>
+        <td class="muted">Corning Incorporated</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">GLXYc</span></td>
+        <td class="muted">Galaxy Digital Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">GMEc</span></td>
+        <td class="muted">GameStop Corp.</td>
+        <td class="r num">6,490</td>
+        <td class="r muted num">2026-09-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">GPROc</span></td>
+        <td class="muted">GoPro, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">GRPNc</span></td>
+        <td class="muted">Groupon, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">GSATc</span></td>
+        <td class="muted">Globalstar, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">GSc</span></td>
+        <td class="muted">The Goldman Sachs Group, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">GTc</span></td>
+        <td class="muted">The Goodyear Tire &amp; Rubber Company</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">GTLBc</span></td>
+        <td class="muted">GitLab Inc.</td>
+        <td class="r num">575</td>
+        <td class="r muted num">2026-11-17</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">HDc</span></td>
+        <td class="muted">The Home Depot, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">HEc</span></td>
+        <td class="muted">Hawaiian Electric Industries, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">HIMSc</span></td>
+        <td class="muted">Hims &amp; Hers Health, Inc.</td>
+        <td class="r num">21,109</td>
+        <td class="r muted num">2026-09-28</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">HOGc</span></td>
+        <td class="muted">Harley-Davidson, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">HONc</span></td>
+        <td class="muted">Honeywell International Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">HOODc</span></td>
+        <td class="muted">Robinhood Markets, Inc.</td>
+        <td class="r num">4,046</td>
+        <td class="r muted num">2026-11-10</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">HPEc</span></td>
+        <td class="muted">Hewlett Packard Enterprise Company</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">HPQc</span></td>
+        <td class="muted">HP Inc.</td>
+        <td class="r num">69</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">HRBc</span></td>
+        <td class="muted">H&amp;R Block, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">HSAIc</span></td>
+        <td class="muted">Hesai Group</td>
+        <td class="r num">2,840</td>
+        <td class="r muted num">2026-10-09</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">HSYc</span></td>
+        <td class="muted">The Hershey Company</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">HTZc</span></td>
+        <td class="muted">Hertz Global Holdings, Inc.</td>
+        <td class="r num">226</td>
+        <td class="r muted num">2026-09-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">HUTc</span></td>
+        <td class="muted">Hut 8 Corp.</td>
+        <td class="r num">40</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">HYMCc</span></td>
+        <td class="muted">Hycroft Mining Holding Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">IBMc</span></td>
+        <td class="muted">International Business Machines Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">IBRXc</span></td>
+        <td class="muted">ImmunityBio, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">INFQc</span></td>
+        <td class="muted">Infleqtion, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">INFYc</span></td>
+        <td class="muted">Infosys Limited</td>
+        <td class="r num">2,824</td>
+        <td class="r muted num">2026-10-09</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">INTUc</span></td>
+        <td class="muted">Intuit Inc.</td>
+        <td class="r num">7</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">IONQc</span></td>
+        <td class="muted">IonQ, Inc.</td>
+        <td class="r num">88</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">IONSc</span></td>
+        <td class="muted">Ionis Pharmaceuticals, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">IRONc</span></td>
+        <td class="muted">Disc Medicine, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ISRGc</span></td>
+        <td class="muted">Intuitive Surgical, Inc.</td>
+        <td class="r num">5</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ITc</span></td>
+        <td class="muted">Gartner, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">JACKc</span></td>
+        <td class="muted">Jack in the Box Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">JBLUc</span></td>
+        <td class="muted">JetBlue Airways Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">JNJc</span></td>
+        <td class="muted">Johnson &amp; Johnson</td>
+        <td class="r num">92</td>
+        <td class="r muted num">2026-11-17</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">JPMc</span></td>
+        <td class="muted">JPMorgan Chase &amp; Co.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">KDc</span></td>
+        <td class="muted">Kyndryl Holdings, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">KLACc</span></td>
+        <td class="muted">KLA Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">KMBc</span></td>
+        <td class="muted">Kimberly-Clark Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">KOc</span></td>
+        <td class="muted">The Coca-Cola Company</td>
+        <td class="r num">1,502</td>
+        <td class="r muted num">2026-11-18</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">KODKc</span></td>
+        <td class="muted">Eastman Kodak Company</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">KRMNc</span></td>
+        <td class="muted">Karman Holdings Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">KSSc</span></td>
+        <td class="muted">Kohl's Corporation</td>
+        <td class="r num">90</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">KTOSc</span></td>
+        <td class="muted">Kratos Defense &amp; Security Solutions, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">LCIDc</span></td>
+        <td class="muted">Lucid Group, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">LEUc</span></td>
+        <td class="muted">Centrus Energy Corp.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">LFMDc</span></td>
+        <td class="muted">LifeMD, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">LIc</span></td>
+        <td class="muted">Li Auto Inc.</td>
+        <td class="r num">2,852</td>
+        <td class="r muted num">2026-10-09</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">LITEc</span></td>
+        <td class="muted">Lumentum Holdings Inc</td>
+        <td class="r num">242</td>
+        <td class="r muted num">2026-10-26</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">LLYc</span></td>
+        <td class="muted">Eli Lilly &amp; Co</td>
+        <td class="r num">127</td>
+        <td class="r muted num">2026-09-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">LOVEc</span></td>
+        <td class="muted">The Lovesac Company</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">LRCXc</span></td>
+        <td class="muted">Lam Research Corporation</td>
+        <td class="r num">134</td>
+        <td class="r muted num">2026-11-17</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">LULUc</span></td>
+        <td class="muted">lululemon athletica inc.</td>
+        <td class="r num">250</td>
+        <td class="r muted num">2026-11-17</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">LUNRc</span></td>
+        <td class="muted">Intuitive Machines, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">LUVc</span></td>
+        <td class="muted">Southwest Airlines Company</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">LWLGc</span></td>
+        <td class="muted">Lightwave Logic, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">LYFTc</span></td>
+        <td class="muted">Lyft, Inc.</td>
+        <td class="r num">120</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">LYVc</span></td>
+        <td class="muted">Live Nation Entertainment, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">MARAc</span></td>
+        <td class="muted">MARA Holdings, Inc.</td>
+        <td class="r num">400</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">MCDc</span></td>
+        <td class="muted">McDonald's Corporation</td>
+        <td class="r num">511</td>
+        <td class="r muted num">2026-11-18</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">MDBc</span></td>
+        <td class="muted">MongoDB, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">MDGLc</span></td>
+        <td class="muted">Madrigal Pharmaceuticals, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">MEDc</span></td>
+        <td class="muted">Medifast, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">MIRc</span></td>
+        <td class="muted">Mirion Technologies, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">MNSTc</span></td>
+        <td class="muted">Monster Beverage Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">MPc</span></td>
+        <td class="muted">MP Materials Corp.</td>
+        <td class="r num">750</td>
+        <td class="r muted num">2026-11-17</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">MRKc</span></td>
+        <td class="muted">Merck &amp; Co., Inc.</td>
+        <td class="r num">190</td>
+        <td class="r muted num">2026-11-17</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">MRNAc</span></td>
+        <td class="muted">Moderna, Inc.</td>
+        <td class="r num">599</td>
+        <td class="r muted num">2026-09-28</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">MRVLc</span></td>
+        <td class="muted">Marvell Technology, Inc.</td>
+        <td class="r num">965</td>
+        <td class="r muted num">2026-09-28</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">MTNc</span></td>
+        <td class="muted">Vail Resorts, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">MUc</span></td>
+        <td class="muted">Micron Technology Inc.</td>
+        <td class="r num">1,753</td>
+        <td class="r muted num">2026-09-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">MVISc</span></td>
+        <td class="muted">MicroVision, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">NDSNc</span></td>
+        <td class="muted">Nordson Corporation</td>
+        <td class="r num">6</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">NEMc</span></td>
+        <td class="muted">Newmont Corporation</td>
+        <td class="r num">21</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">NEXTc</span></td>
+        <td class="muted">NextDecade Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">NFLXc</span></td>
+        <td class="muted">Netflix Inc</td>
+        <td class="r num">7,482</td>
+        <td class="r muted num">2026-09-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">NIOc</span></td>
+        <td class="muted">NIO Inc.</td>
+        <td class="r num">15,319</td>
+        <td class="r muted num">2026-10-09</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">NKEc</span></td>
+        <td class="muted">NIKE, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">NKTRc</span></td>
+        <td class="muted">Nektar Therapeutics</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">NNc</span></td>
+        <td class="muted">NextNav Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">NNEc</span></td>
+        <td class="muted">NANO Nuclear Energy Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">NOCc</span></td>
+        <td class="muted">Northrop Grumman Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">NOKc</span></td>
+        <td class="muted">Nokia Corporation</td>
+        <td class="r num">6,175</td>
+        <td class="r muted num">2026-10-09</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">NOWc</span></td>
+        <td class="muted">ServiceNow, Inc.</td>
+        <td class="r num">1,400</td>
+        <td class="r muted num">2026-11-23</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">NRGc</span></td>
+        <td class="muted">NRG Energy, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">NRGVc</span></td>
+        <td class="muted">Energy Vault Holdings, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">NTAPc</span></td>
+        <td class="muted">NetApp, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">NTLAc</span></td>
+        <td class="muted">Intellia Therapeutics, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">NUVBc</span></td>
+        <td class="muted">Nuvation Bio Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">NVAXc</span></td>
+        <td class="muted">Novavax Inc</td>
+        <td class="r num">252</td>
+        <td class="r muted num">2026-09-29</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">NVOc</span></td>
+        <td class="muted">Novo Nordisk A/S</td>
+        <td class="r num">818</td>
+        <td class="r muted num">2026-10-09</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">NVTSc</span></td>
+        <td class="muted">Navitas Semiconductor Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">OKLOc</span></td>
+        <td class="muted">Oklo Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">OKTAc</span></td>
+        <td class="muted">Okta, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">OLLIc</span></td>
+        <td class="muted">Ollie's Bargain Outlet Holdings, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">OMERc</span></td>
+        <td class="muted">Omeros Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ONc</span></td>
+        <td class="muted">ON Semiconductor Corporation</td>
+        <td class="r num">30</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ONDSc</span></td>
+        <td class="muted">Ondas Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">OPADc</span></td>
+        <td class="muted">Offerpad Solutions Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">OPENc</span></td>
+        <td class="muted">Opendoor Technologies Inc.</td>
+        <td class="r num">1,600</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">OPNWc</span></td>
+        <td class="muted">OpenWorld, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">OPRAc</span></td>
+        <td class="muted">Opera Limited</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ORCLc</span></td>
+        <td class="muted">Oracle Corporation</td>
+        <td class="r num">2,934</td>
+        <td class="r muted num">2026-09-28</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">OUSTc</span></td>
+        <td class="muted">Ouster, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">OWLc</span></td>
+        <td class="muted">Blue Owl Capital Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">PANWc</span></td>
+        <td class="muted">Palo Alto Networks, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">PATHc</span></td>
+        <td class="muted">UiPath, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">PCTc</span></td>
+        <td class="muted">PureCycle Technologies, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">PDDc</span></td>
+        <td class="muted">PDD Holdings Inc.</td>
+        <td class="r num">400</td>
+        <td class="r muted num">2026-10-09</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">PENGc</span></td>
+        <td class="muted">Penguin Solutions, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">PEPc</span></td>
+        <td class="muted">PepsiCo, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">PFEc</span></td>
+        <td class="muted">Pfizer Inc</td>
+        <td class="r num">10</td>
+        <td class="r muted num">2026-09-29</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">PGc</span></td>
+        <td class="muted">The Procter &amp; Gamble Company</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">PINSc</span></td>
+        <td class="muted">Pinterest, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">PLAYc</span></td>
+        <td class="muted">Dave &amp; Buster’s Entertainment, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">PLc</span></td>
+        <td class="muted">Planet Labs PBC</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">PLNTc</span></td>
+        <td class="muted">Planet Fitness, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">PLTRc</span></td>
+        <td class="muted">Palantir Technologies Inc.</td>
+        <td class="r num">2,996</td>
+        <td class="r muted num">2026-09-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">PLUGc</span></td>
+        <td class="muted">Plug Power Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">PMc</span></td>
+        <td class="muted">Philip Morris International Inc.</td>
+        <td class="r num">0</td>
+        <td class="r muted num">2026-09-29</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">PRc</span></td>
+        <td class="muted">Permian Resources Corporation</td>
+        <td class="r num">88</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">PRMEc</span></td>
+        <td class="muted">Prime Medicine, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">PSc</span></td>
+        <td class="muted">Pershing Square Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">PTONc</span></td>
+        <td class="muted">Peloton Interactive, Inc.</td>
+        <td class="r num">358</td>
+        <td class="r muted num">2026-09-29</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">PUMPc</span></td>
+        <td class="muted">ProPetro Holding Corp.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">PURRc</span></td>
+        <td class="muted">Hyperliquid Strategies Inc</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">PYPLc</span></td>
+        <td class="muted">PayPal Holdings, Inc.</td>
+        <td class="r num">615</td>
+        <td class="r muted num">2026-09-29</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">PZZAc</span></td>
+        <td class="muted">Papa John’s International, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">QBTSc</span></td>
+        <td class="muted">D-Wave Quantum Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">QCOMc</span></td>
+        <td class="muted">Qualcomm Incorporated</td>
+        <td class="r num">161</td>
+        <td class="r muted num">2026-11-17</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">QNTc</span></td>
+        <td class="muted">Quantinuum Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">QSc</span></td>
+        <td class="muted">QuantumScape Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">QUBTc</span></td>
+        <td class="muted">Quantum Computing Inc.</td>
+        <td class="r num">287</td>
+        <td class="r muted num">2026-09-28</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">QUITc</span></td>
+        <td class="muted">Achieve Life Sciences, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">QXOc</span></td>
+        <td class="muted">QXO, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">RBLXc</span></td>
+        <td class="muted">Roblox Corporation</td>
+        <td class="r num">73</td>
+        <td class="r muted num">2026-09-28</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">RBRKc</span></td>
+        <td class="muted">Rubrik, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">RCATc</span></td>
+        <td class="muted">Red Cat Holdings, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">RDDTc</span></td>
+        <td class="muted">Reddit, Inc.</td>
+        <td class="r num">652</td>
+        <td class="r muted num">2026-09-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">RDWc</span></td>
+        <td class="muted">Redwire Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">REALc</span></td>
+        <td class="muted">The RealReal, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">REGNc</span></td>
+        <td class="muted">Regeneron Pharmaceuticals, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">RGTIc</span></td>
+        <td class="muted">Rigetti Computing, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">RHc</span></td>
+        <td class="muted">RH</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">RIGLc</span></td>
+        <td class="muted">Rigel Pharmaceuticals, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">RIOTc</span></td>
+        <td class="muted">Riot Platforms, Inc.</td>
+        <td class="r num">120</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">RIVNc</span></td>
+        <td class="muted">Rivian Automotive, Inc.</td>
+        <td class="r num">2,232</td>
+        <td class="r muted num">2026-10-23</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">RKLBc</span></td>
+        <td class="muted">Rocket Lab Corporation</td>
+        <td class="r num">551</td>
+        <td class="r muted num">2026-10-23</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">RKTc</span></td>
+        <td class="muted">Rocket Companies, Inc.</td>
+        <td class="r num">140</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ROKc</span></td>
+        <td class="muted">Rockwell Automation, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ROOTc</span></td>
+        <td class="muted">Root, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">RRc</span></td>
+        <td class="muted">Richtech Robotics Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">RTXc</span></td>
+        <td class="muted">RTX Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">RUMc</span></td>
+        <td class="muted">RUM Group Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">RUNc</span></td>
+        <td class="muted">Sunrun Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">RXRXc</span></td>
+        <td class="muted">Recursion Pharmaceuticals, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SAMc</span></td>
+        <td class="muted">The Boston Beer Company, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SANAc</span></td>
+        <td class="muted">Sana Biotechnology, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SANc</span></td>
+        <td class="muted">Banco Santander, S.A.</td>
+        <td class="r num">2,491</td>
+        <td class="r muted num">2026-10-09</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SAPc</span></td>
+        <td class="muted">SAP SE</td>
+        <td class="r num">148</td>
+        <td class="r muted num">2026-10-09</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SBETc</span></td>
+        <td class="muted">Sharplink, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SBUXc</span></td>
+        <td class="muted">Starbucks Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">Sc</span></td>
+        <td class="muted">SentinelOne, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SEc</span></td>
+        <td class="muted">Sea Limited</td>
+        <td class="r num">447</td>
+        <td class="r muted num">2026-10-09</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SERVc</span></td>
+        <td class="muted">Serve Robotics Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SEZLc</span></td>
+        <td class="muted">Sezzle Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SGc</span></td>
+        <td class="muted">Sweetgreen, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SHAKc</span></td>
+        <td class="muted">Shake Shack Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SHAZc</span></td>
+        <td class="muted">SharonAI Holdings Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SIDUc</span></td>
+        <td class="muted">Sidus Space, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SKHYc</span></td>
+        <td class="muted">SK hynix Inc.</td>
+        <td class="r num">2,694</td>
+        <td class="r muted num">2026-10-09</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SKYDc</span></td>
+        <td class="muted">Skydance Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SLDPc</span></td>
+        <td class="muted">Solid Power, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SLSc</span></td>
+        <td class="muted">SELLAS Life Sciences Group, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SMc</span></td>
+        <td class="muted">SM Energy Company</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SMCIc</span></td>
+        <td class="muted">Super Micro Computer, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SMPLc</span></td>
+        <td class="muted">The Simply Good Foods Company</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SMRc</span></td>
+        <td class="muted">NuScale Power Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SNAPc</span></td>
+        <td class="muted">Snap Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SNDXc</span></td>
+        <td class="muted">Syndax Pharmaceuticals, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SNOWc</span></td>
+        <td class="muted">Snowflake Inc.</td>
+        <td class="r num">500</td>
+        <td class="r muted num">2026-11-23</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SOc</span></td>
+        <td class="muted">The Southern Company</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SOCc</span></td>
+        <td class="muted">Sable Offshore Corp.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SOFIc</span></td>
+        <td class="muted">SoFi Technologies, Inc.</td>
+        <td class="r num">1,959</td>
+        <td class="r muted num">2026-11-17</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SONYc</span></td>
+        <td class="muted">Sony Group Corporation</td>
+        <td class="r num">1,836</td>
+        <td class="r muted num">2026-10-09</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SOUNc</span></td>
+        <td class="muted">SoundHound AI, Inc.</td>
+        <td class="r num">694</td>
+        <td class="r muted num">2026-09-29</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SPBc</span></td>
+        <td class="muted">Spectrum Brands Holdings, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SPCEc</span></td>
+        <td class="muted">Virgin Galactic Holdings, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SPHRc</span></td>
+        <td class="muted">Sphere Entertainment Co.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SRPTc</span></td>
+        <td class="muted">Sarepta Therapeutics, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">STZc</span></td>
+        <td class="muted">Constellation Brands, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SWBIc</span></td>
+        <td class="muted">Smith &amp; Wesson Brands, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SWKSc</span></td>
+        <td class="muted">Skyworks Solutions, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">SYMc</span></td>
+        <td class="muted">Symbotic Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">TAPc</span></td>
+        <td class="muted">Molson Coors Beverage Company</td>
+        <td class="r num">51</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">TDOCc</span></td>
+        <td class="muted">Teladoc Health, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">TEAMc</span></td>
+        <td class="muted">Atlassian Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">TEMc</span></td>
+        <td class="muted">Tempus AI, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">TERc</span></td>
+        <td class="muted">Teradyne, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">TGTc</span></td>
+        <td class="muted">Target Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">TGTXc</span></td>
+        <td class="muted">TG Therapeutics, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">TKOc</span></td>
+        <td class="muted">TKO Group Holdings, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">TKRc</span></td>
+        <td class="muted">The Timken Company</td>
+        <td class="r num">18</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">TMDXc</span></td>
+        <td class="muted">TransMedics Group, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">TNDMc</span></td>
+        <td class="muted">Tandem Diabetes Care, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">TOSTc</span></td>
+        <td class="muted">Toast, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">TRIPc</span></td>
+        <td class="muted">Tripadvisor, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">TRONc</span></td>
+        <td class="muted">Tron Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">TTDc</span></td>
+        <td class="muted">The Trade Desk, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">TTMIc</span></td>
+        <td class="muted">TTM Technologies, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">TTWOc</span></td>
+        <td class="muted">Take-Two Interactive Software, Inc.</td>
+        <td class="r num">1,650</td>
+        <td class="r muted num">2026-09-28</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">TWSTc</span></td>
+        <td class="muted">Twist Bioscience Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">UAAc</span></td>
+        <td class="muted">Under Armour, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">UALc</span></td>
+        <td class="muted">United Airlines Holdings, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">UBERc</span></td>
+        <td class="muted">Uber Technologies, Inc.</td>
+        <td class="r num">2,100</td>
+        <td class="r muted num">2026-11-23</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">Uc</span></td>
+        <td class="muted">Unity Software Inc.</td>
+        <td class="r num">42</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">UIc</span></td>
+        <td class="muted">Ubiquiti Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ULc</span></td>
+        <td class="muted">Unilever Plc</td>
+        <td class="r num">564</td>
+        <td class="r muted num">2026-10-09</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ULTAc</span></td>
+        <td class="muted">Ulta Beauty, Inc.</td>
+        <td class="r num">3</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">UMACc</span></td>
+        <td class="muted">Unusual Machines, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">UNHc</span></td>
+        <td class="muted">UnitedHealth Group Incorporated</td>
+        <td class="r num">70</td>
+        <td class="r muted num">2026-10-23</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">UPSc</span></td>
+        <td class="muted">United Parcel Service, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">UPSTc</span></td>
+        <td class="muted">Upstart Holdings, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">USARc</span></td>
+        <td class="muted">USA Rare Earth, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">USDEc</span></td>
+        <td class="muted">StablecoinX Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">VALEc</span></td>
+        <td class="muted">Vale S.A.</td>
+        <td class="r num">3,503</td>
+        <td class="r muted num">2026-10-09</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">Vc</span></td>
+        <td class="muted">Visa Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">VCc</span></td>
+        <td class="muted">Visteon Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">VERAc</span></td>
+        <td class="muted">Vera Therapeutics, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">VKTXc</span></td>
+        <td class="muted">Viking Therapeutics, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">VOYGc</span></td>
+        <td class="muted">Voyager Technologies, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">VPGc</span></td>
+        <td class="muted">Vishay Precision Group, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">VRDNc</span></td>
+        <td class="muted">Viridian Therapeutics, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">VRTc</span></td>
+        <td class="muted">Vertiv Holdings Co</td>
+        <td class="r num">152</td>
+        <td class="r muted num">2026-11-17</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">VRTXc</span></td>
+        <td class="muted">Vertex Pharmaceuticals Incorporated</td>
+        <td class="r num">4</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">VSTc</span></td>
+        <td class="muted">Vistra Corp.</td>
+        <td class="r num">215</td>
+        <td class="r muted num">2026-11-17</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">VSXYc</span></td>
+        <td class="muted">Victoria's Secret &amp; Co.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">VVVc</span></td>
+        <td class="muted">Valvoline Inc</td>
+        <td class="r num">53</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">WAYc</span></td>
+        <td class="muted">Waystar Holding Corp.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">Wc</span></td>
+        <td class="muted">Wayfair Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">WDCc</span></td>
+        <td class="muted">Western Digital Corporation</td>
+        <td class="r num">500</td>
+        <td class="r muted num">2026-10-26</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">WENc</span></td>
+        <td class="muted">Wendy's Co</td>
+        <td class="r num">466</td>
+        <td class="r muted num">2026-09-29</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">WGSc</span></td>
+        <td class="muted">GeneDx Holdings Corp.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">WHRc</span></td>
+        <td class="muted">Whirlpool Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">WINGc</span></td>
+        <td class="muted">Wingstop Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">WKHSc</span></td>
+        <td class="muted">Workhorse Group Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">WMTc</span></td>
+        <td class="muted">Walmart Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">WOLFc</span></td>
+        <td class="muted">Wolfspeed, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">WOOFc</span></td>
+        <td class="muted">Petco Health and Wellness Company, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">WRDc</span></td>
+        <td class="muted">WeRide Inc.</td>
+        <td class="r num">7,504</td>
+        <td class="r muted num">2026-10-09</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">WTIc</span></td>
+        <td class="muted">W&amp;T Offshore, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">WUc</span></td>
+        <td class="muted">The Western Union Company</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">WULFc</span></td>
+        <td class="muted">TeraWulf Inc.</td>
+        <td class="r num">190</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">WWc</span></td>
+        <td class="muted">WW International, Inc.</td>
+        <td class="r num">250</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">XOMc</span></td>
+        <td class="muted">ExxonMobil Holdings Corporation</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">XXIc</span></td>
+        <td class="muted">Twenty One Capital, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">XYZc</span></td>
+        <td class="muted">Block, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">YELPc</span></td>
+        <td class="muted">Yelp Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">YETIc</span></td>
+        <td class="muted">YETI Holdings, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">YOUc</span></td>
+        <td class="muted">CLEAR Secure, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">YUMc</span></td>
+        <td class="muted">YUM! Brands, Inc.</td>
+        <td class="r num">12</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ZBRAc</span></td>
+        <td class="muted">Zebra Technologies Corporation</td>
+        <td class="r num">5</td>
+        <td class="r muted num">2026-11-24</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ZMc</span></td>
+        <td class="muted">Zoom Communications, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr>
+<tr>
+        <td><span class="sym">ZSc</span></td>
+        <td class="muted">Zscaler, Inc.</td>
+        <td class="r num">—</td>
+        <td class="r muted num">—</td>
+        <td><span class="badge gray">NAV not published</span></td>
+      </tr></tbody>
+    </table></div>
+  </section>
+</main>
+<footer>
+  <div class="wrap">
+    <p><strong>Static public snapshot</strong> of the agent's dashboard, generated 2026-11-25 05:25 UTC from the project's snapshot store (snapshot #417) with attestation data read from Base Sepolia at generation time. Rebuilt as snapshots accumulate — regenerate with <code>npm run web:static</code>.</p>
+    <p><strong>Not financial advice.</strong> This dashboard is a research demonstration built for the
+    Base Stocks Maxxing Builder Quest. The portfolio shown is a <strong>paper portfolio</strong>:
+    simulated USDC, simulated trades executed at Chainlink NAV inside the simulation only —
+    no real funds are held, moved, or at risk, and nothing here is a promise of returns.</p>
+    <p>Tokenized stocks are available only to persons in eligible jurisdictions <strong>outside the
+    United States</strong>. This project does not enable trading for U.S. users and claims no rights
+    in any underlying public company. Prices: Aerodrome DEX spot and Chainlink NAV on Base,
+    snapshotted by the agent from public sources.</p>
+  </div>
+</footer>
+</body>
+</html>
